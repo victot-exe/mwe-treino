@@ -28,6 +28,13 @@ export default function RootLayout() {
             title: "➕ Novo Treino",
           }}
         />
+        <Stack.Screen
+          name="(modals)/treinos/[id]"
+          options={{
+            presentation: "modal",
+            title: "Treino",
+          }}
+        />
       </Stack>
     </GestureHandlerRootView>
   );

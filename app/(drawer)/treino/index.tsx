@@ -18,7 +18,10 @@ export default function TreinosScreen() {
         data={treinos}
         keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => (
-          <Link href={`/treino/[id]`} asChild>
+          <Link
+            href={{ pathname: "/treinos/[id]", params: { id: String(item.id) } }}
+            asChild
+          >
             <TouchableOpacity>
               <Text>{item.nome}</Text>
             </TouchableOpacity>
@@ -26,7 +29,7 @@ export default function TreinosScreen() {
         )}
       />
 
-      <Link href="/(modals)/treinos/novoTreino" asChild>
+      <Link href={{ pathname: "/treinos/novoTreino" }} asChild>
         <TouchableOpacity>
           <Text>
             ➕ Criar Novo Treino

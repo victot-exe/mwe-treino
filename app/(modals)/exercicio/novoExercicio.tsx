@@ -3,23 +3,16 @@ import { Exercicio } from "@/src/types";
 import React, { useState } from "react";
 import { Button, Text, TextInput, View } from "react-native";
 
-type FormExercicio = {
-    nome: string;
-    repeticoes: number;
-    series: number;
-    descanso: number;
-};
-
 export default function NovoExercicioScreen() {
     const [form, setForm] = useState<Exercicio>({
-        id: 0,
+        id:null,
         nome: "",
         repeticoes: 0,
         series: 0,
         descanso: 0,
     });
 
-    const handleChange = (campo: keyof FormExercicio, valor: string) => {
+    const handleChange = (campo: keyof Exercicio, valor: string) => {
         setForm({
         ...form,
         [campo]: campo === "nome" ? valor : parseInt(valor) || 0, // garante que não vire NaN
