@@ -1,3 +1,4 @@
+import { getTreinos } from "@/src/database/treinoRepository";
 import { Treino } from "@/src/types";
 import { Link } from "expo-router";
 import { useEffect, useState } from "react";
@@ -5,10 +6,16 @@ import { FlatList, Text, TouchableOpacity, View } from "react-native";
 
 export default function TreinosScreen() {
   const [treinos, setTreinos] = useState<Treino[]>([]);
+  
 
   useEffect(() => {
-    setTreinos(treinosData);
-  }, []);
+    async function carregarTreinos(){
+      const treinosData = await getTreinos();
+      setTreinos(treinosData);
+    }
+
+    carregarTreinos();
+  }, []);//ver para tirar
 
   return (
     <View>
@@ -40,7 +47,7 @@ export default function TreinosScreen() {
   );
 }
 
-const treinosData: Treino[] = [
+const treinosDataOld: Treino[] = [
   {
     id: 1,
     nome: "Treino de Força - Parte Superior",
