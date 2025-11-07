@@ -1,68 +1,69 @@
-//definir como modal e nao como tela inteira 
 import { Exercicio } from "@/src/types";
 import React, { useState } from "react";
 import { Button, Text, TextInput, View } from "react-native";
 
 export default function NovoExercicioScreen() {
-    const [form, setForm] = useState<Exercicio>({
-        id:null,
-        nome: "",
-        repeticoes: 0,
-        series: 0,
-        descanso: 0,
+  const [form, setForm] = useState<Exercicio>({
+    id: 0,
+    nome: "",
+    descricao: "",
+  });
+
+  const handleChange = (campo: keyof Exercicio, valor: string) => {
+    setForm({
+      ...form,
+      [campo]: valor,
     });
+  };
 
-    const handleChange = (campo: keyof Exercicio, valor: string) => {
-        setForm({
-        ...form,
-        [campo]: campo === "nome" ? valor : parseInt(valor) || 0, // garante que não vire NaN
-        });
-    };
-
-    const handleSalvar = () => {
-        //aqui vou colocar o service que salva no banco de dados
-        alert(
-            `Exercício salvo Nome: ${form.nome}\nRepetições: ${form.repeticoes}\nSéries: ${form.series}\nDescanso: ${form.descanso}`
-        );
-
-        setForm({ id: 0, nome: "", repeticoes: 0, series: 0, descanso: 0 });
-        //funcao para fechar o modal apos salvar e voltar  para a tela anterior
-    };
-
-    return (
-        <View>
-            <Text>Criar novo exercício</Text>
-
-            <TextInput
-                placeholder="Nome do Exercício"
-                value={form.nome}
-                onChangeText={(valor) => handleChange("nome", valor)}
-            />
-
-            <TextInput
-                placeholder="Repetições"
-                keyboardType="number-pad"
-                value={form.repeticoes === 0 ? "" : form.repeticoes.toString()}
-                onChangeText={(valor) => handleChange("repeticoes", valor)}
-            />
-
-            <TextInput
-                placeholder="Séries"
-                keyboardType="number-pad"
-                value={form.series === 0 ? "" : form.series.toString()}
-                onChangeText={(valor) => handleChange("series", valor)}
-            />
-
-            <TextInput
-                placeholder="Descanso (segundos)"
-                keyboardType="number-pad"
-                value={form.descanso === 0 ? "" : form.descanso.toString()}
-                onChangeText={(valor) => handleChange("descanso", valor)}
-            />
-
-            <Button title="Salvar Exercício"
-                onPress={handleSalvar}
-                />
-        </View>
+  const handleSalvar = () => {
+    // Aqui você chamará o repository ou service que salva no banco (exercicioRepository)
+    alert(
+      `Exercício salvo:\n\nNome: ${form.nome}\nDescrição: ${form.descricao || "—"}`
     );
+
+    // Reseta o formulário
+    setForm({ id: 0, nome: "", descricao: "" });
+
+    // Aqui você pode adicionar o fechamento do modal (por exemplo, com router.back() ou setModalVisible(false))
+  };
+
+  return (
+    <View style={{ padding: 20 }}>
+      <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 10 }}>
+        Criar novo exercício
+      </Text>
+
+      <TextInput
+        placeholder="Nome do Exercício"
+        value={form.nome}
+        onChangeText={(valor) => handleChange("nome", valor)}
+        style={{
+          borderWidth: 1,
+          borderColor: "#ccc",
+          borderRadius: 8,
+          padding: 10,
+          marginBottom: 10,
+        }}
+      />
+
+      <TextInput
+        placeholder="Descrição (opcional)"
+        value={form.descricao || ""}
+        onChangeText={(valor) => handleChange("descricao", valor)}
+        multiline
+        style={{
+          borderWidth: 1,
+          borderColor: "#ccc",
+          borderRadius: 8,
+          padding: 10,
+          height: 80,
+          textAlignVertical: "top",
+          marginBottom: 20,
+        }}
+      />
+
+      <Button title="Salvar Exercício" onPress={handleSalvar} />
+    </View>
+  );
 }

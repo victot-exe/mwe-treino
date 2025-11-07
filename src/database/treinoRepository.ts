@@ -1,53 +1,113 @@
-import type { Exercicio, Treino } from "../types";
+import { Exercicio, ExercicioTreino, Treino } from "../types";
 import { db } from "./database";
 
-export async function getTreinos(): Promise<Treino[]> {
-  const treinos = await db.getAllAsync<Treino>("SELECT * FROM treinos;");
-  for (const treino of treinos) {
-    const exercicios = await db.getAllAsync<Exercicio>(
-      `SELECT e.* FROM exercicios e
-       JOIN treino_exercicio te ON e.id = te.exercicio_id
-       WHERE te.treino_id = ?;`,
+/**
+ * Retorna todos os treinos com seus exercícios relacionados
+ */
+export async function getAllTreinos(): Promise<Treino[]> {
+  const result = await db.getAllAsync<Treino>(`SELECT * FROM treinos`);
+  const treinosComExercicios: Treino[] = [];
+
+  for (const treino of result) {
+    const exerciciosTreino = await db.getAllAsync<
+      ExercicioTreino & { nome: string; descricao: string }
+    >(
+      `
+      SELECT et.*, e.nome, e.descricao
+      FROM exercicio_treino et
+      JOIN exercicios e ON et.exercicio_id = e.id
+      WHERE et.treino_id = ?
+      `,
       [treino.id]
     );
-    treino.exercicios = exercicios;
+
+    const exercicios = exerciciosTreino.map((et) => ({
+      id: et.id,
+      treino_id: et.treino_id,
+      exercicio_id: et.exercicio_id,
+      repeticoes: et.repeticoes,
+      series: et.series,
+      descanso: et.descanso,
+      exercicio: {
+        id: et.exercicio_id,
+        nome: et.nome,
+        descricao: et.descricao,
+      } as Exercicio,
+    }));
+
+    treinosComExercicios.push({ ...treino, exercicios });
   }
-  return treinos;
+
+  return treinosComExercicios;
 }
 
-export async function addTreino(nome: string, exercicios: number[]) {
-  const result = await db.runAsync(`INSERT INTO treinos (nome) VALUES (?);`, [nome]);
-  const treinoId = result.lastInsertRowId;
-  for (const exercicioId of exercicios) {
-    await db.runAsync(
-      `INSERT INTO treino_exercicio (treino_id, exercicio_id)
-       VALUES (?, ?);`,
-      [treinoId, exercicioId]
-    );
-  }
-}
-
-export async function deleteTreino(id: number) {
-  await db.runAsync(`DELETE FROM treinos WHERE id = ?;`, [id]);
-}
-
+/**
+ * Retorna um treino específico pelo ID
+ */
 export async function getTreinoById(id: number): Promise<Treino | null> {
   const treino = await db.getFirstAsync<Treino>(
-    `SELECT * FROM treinos WHERE id = ?;`,
+    `SELECT * FROM treinos WHERE id = ?`,
     [id]
   );
 
-  if(!treino) {
-    return null;
-  }
+  if (!treino) return null;
 
-  const exercicios = await db.getAllAsync<Exercicio>(
-    `SELECT e.* FROM exercicios e
-     JOIN treino_exercicio te ON e.id = te.exercicio_id
-     WHERE te.treino_id = ?;`,
+  const exerciciosTreino = await db.getAllAsync<
+    ExercicioTreino & { nome: string; descricao: string }
+  >(
+    `
+    SELECT et.*, e.nome, e.descricao
+    FROM exercicio_treino et
+    JOIN exercicios e ON et.exercicio_id = e.id
+    WHERE et.treino_id = ?
+    `,
     [id]
   );
-  treino.exercicios = exercicios;
 
-  return treino;
+  const exercicios = exerciciosTreino.map((et) => ({
+    id: et.id,
+    treino_id: et.treino_id,
+    exercicio_id: et.exercicio_id,
+    repeticoes: et.repeticoes,
+    series: et.series,
+    descanso: et.descanso,
+    exercicio: {
+      id: et.exercicio_id,
+      nome: et.nome,
+      descricao: et.descricao,
+    } as Exercicio,
+  }));
+
+  return { ...treino, exercicios };
+}
+
+/**
+ * Cria um novo treino
+ */
+export async function createTreino(nome: string): Promise<number> {
+  const result = await db.runAsync(`INSERT INTO treinos (nome) VALUES (?)`, [
+    nome,
+  ]);
+  return result.lastInsertRowId!;
+}
+
+/**
+ * Atualiza o nome de um treino existente
+ */
+export async function updateTreino(id: number, nome: string): Promise<void> {
+  await db.runAsync(`UPDATE treinos SET nome = ? WHERE id = ?`, [nome, id]);
+}
+
+/**
+ * Deleta um treino e seus exercícios relacionados
+ */
+export async function deleteTreino(id: number): Promise<void> {
+  await db.runAsync(`DELETE FROM treinos WHERE id = ?`, [id]);
+}
+
+/**
+ * Retorna todos os treinos (sem exercícios)
+ */
+export async function getTreinos(): Promise<Treino[]> {
+  return db.getAllAsync<Treino>(`SELECT * FROM treinos`);
 }

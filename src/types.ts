@@ -1,13 +1,21 @@
 export interface Exercicio{
-    id: number | null;
+    id: number;
     nome: string;
-    repeticoes: number;
-    series: number;
-    descanso: number;
+    descricao?: string;
 }
 
 export interface Treino{
     id: number;
     nome: string;
-    exercicios: Exercicio[];
+    exercicios?: ExercicioTreino[];
+}
+
+export interface ExercicioTreino{
+    id: number;
+    treino_id: number;
+    exercicio_id: number;
+    exercicio?: Exercicio;
+    repeticoes: number;
+    series: number;
+    descanso: number;
 }
