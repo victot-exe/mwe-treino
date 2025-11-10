@@ -18,4 +18,5 @@ export interface ExercicioTreino{
     repeticoes: number;
     series: number;
     descanso: number;
+    carga: number;
 }

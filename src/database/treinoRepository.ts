@@ -1,9 +1,6 @@
 import { Exercicio, ExercicioTreino, Treino } from "../types";
 import { db } from "./database";
 
-/**
- * Retorna todos os treinos com seus exercícios relacionados
- */
 export async function getAllTreinos(): Promise<Treino[]> {
   const result = await db.getAllAsync<Treino>(`SELECT * FROM treinos`);
   const treinosComExercicios: Treino[] = [];
@@ -28,6 +25,7 @@ export async function getAllTreinos(): Promise<Treino[]> {
       repeticoes: et.repeticoes,
       series: et.series,
       descanso: et.descanso,
+      carga: et.carga, // ✅ ADICIONADO
       exercicio: {
         id: et.exercicio_id,
         nome: et.nome,
@@ -41,9 +39,6 @@ export async function getAllTreinos(): Promise<Treino[]> {
   return treinosComExercicios;
 }
 
-/**
- * Retorna um treino específico pelo ID
- */
 export async function getTreinoById(id: number): Promise<Treino | null> {
   const treino = await db.getFirstAsync<Treino>(
     `SELECT * FROM treinos WHERE id = ?`,
@@ -71,6 +66,7 @@ export async function getTreinoById(id: number): Promise<Treino | null> {
     repeticoes: et.repeticoes,
     series: et.series,
     descanso: et.descanso,
+    carga: et.carga, // ✅ ADICIONADO
     exercicio: {
       id: et.exercicio_id,
       nome: et.nome,
@@ -81,9 +77,6 @@ export async function getTreinoById(id: number): Promise<Treino | null> {
   return { ...treino, exercicios };
 }
 
-/**
- * Cria um novo treino
- */
 export async function createTreino(nome: string): Promise<number> {
   const result = await db.runAsync(`INSERT INTO treinos (nome) VALUES (?)`, [
     nome,
@@ -91,23 +84,14 @@ export async function createTreino(nome: string): Promise<number> {
   return result.lastInsertRowId!;
 }
 
-/**
- * Atualiza o nome de um treino existente
- */
 export async function updateTreino(id: number, nome: string): Promise<void> {
   await db.runAsync(`UPDATE treinos SET nome = ? WHERE id = ?`, [nome, id]);
 }
 
-/**
- * Deleta um treino e seus exercícios relacionados
- */
 export async function deleteTreino(id: number): Promise<void> {
   await db.runAsync(`DELETE FROM treinos WHERE id = ?`, [id]);
 }
 
-/**
- * Retorna todos os treinos (sem exercícios)
- */
 export async function getTreinos(): Promise<Treino[]> {
   return db.getAllAsync<Treino>(`SELECT * FROM treinos`);
 }

@@ -1,31 +1,41 @@
+import { adicionarExercicio } from "@/src/store/exercicioSlice";
 import { Exercicio } from "@/src/types";
-import React, { useState } from "react";
+import { router } from "expo-router";
+import { useState } from "react";
 import { Button, Text, TextInput, View } from "react-native";
+import { useDispatch } from "react-redux";
 
 export default function NovoExercicioScreen() {
-  const [form, setForm] = useState<Exercicio>({
-    id: 0,
+  const dispatch = useDispatch();
+
+  const [form, setForm] = useState<Omit<Exercicio, "id">>({
     nome: "",
     descricao: "",
   });
 
   const handleChange = (campo: keyof Exercicio, valor: string) => {
-    setForm({
-      ...form,
+    setForm((prev) => ({
+      ...prev,
       [campo]: valor,
-    });
+    }));
   };
 
-  const handleSalvar = () => {
-    // Aqui você chamará o repository ou service que salva no banco (exercicioRepository)
-    alert(
-      `Exercício salvo:\n\nNome: ${form.nome}\nDescrição: ${form.descricao || "—"}`
-    );
+  const handleSalvar = async () => {
+    if (!form.nome.trim()) {
+      alert("O exercício precisa ter um nome!");
+      return;
+    }
 
-    // Reseta o formulário
-    setForm({ id: 0, nome: "", descricao: "" });
+    try {
+      await dispatch(adicionarExercicio(form) as any);
 
-    // Aqui você pode adicionar o fechamento do modal (por exemplo, com router.back() ou setModalVisible(false))
+      alert("✅ Exercício salvo com sucesso!");
+
+      router.back();
+    } catch (error) {
+      console.error(error);
+      alert("Erro ao salvar exercício.");
+    }
   };
 
   return (
