@@ -1,50 +1,67 @@
-# Welcome to your Expo app 👋
+# 🏋️ MWE-TREINO
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Welcome to **MWE-TREINO**, a mobile app built with **Expo** to help you track and manage your gym workouts.
 
-## Get started
+This project was created using [`create-expo-app`](https://www.npmjs.com/package/create-expo-app) and is focused on simplicity, offline usage, and a clean user experience.
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+## 🚀 Getting Started
 
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+### 1️⃣ Install dependencies
 
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### 2️⃣ Start the application
 
-## Learn more
+```bash
+npx expo start
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+After starting the project, you can open the app using:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+* 📱 **Expo Go** (quick testing)
+* 🤖 **Android Emulator**
+* 🍎 **iOS Simulator**
+* 🧪 **Development Build** (recommended for full feature support)
 
-## Join the community
+---
 
-Join our community of developers creating universal apps.
+## 📱 About the App
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+**MWE-TREINO** is a gym companion app designed to help users:
+
+* Create and manage workouts
+* Track exercises and training sessions
+* Persist data locally for offline use
+
+The project is still evolving, and new features and UI improvements are planned.
+
+---
+
+## 🛠️ Tech Stack
+
+* **Expo**
+* **React Native**
+* **TypeScript**
+* **SQLite** (local persistence)
+
+---
+
+## 📌 Roadmap
+
+* [ ] Training session execution flow
+* [ ] Workout history
+* [ ] UI/UX improvements
+* [ ] Performance and code refactoring
+
+---
+
+## 📄 License
+
+This project is for study and personal use.
+
+Feel free to explore, test, and contribute 🚀
+
