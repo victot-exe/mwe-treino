@@ -25,8 +25,9 @@ export const carregarTreinos = createAsyncThunk(
 export const adicionarTreino = createAsyncThunk(
   "treinos/adicionar",
   async (nome: string) => {
-    await createTreino(nome);
-    return await getAllTreinos();
+    const id = await createTreino(nome);
+    const lista = await getAllTreinos();
+    return { id, lista };
   }
 );
 
@@ -57,7 +58,7 @@ const treinoSlice = createSlice({
         state.loading = false;
       })
       .addCase(adicionarTreino.fulfilled, (state, action) => {
-        state.lista = action.payload;
+        state.lista = action.payload.lista;
       })
       .addCase(removerTreino.fulfilled, (state, action) => {
         state.lista = action.payload;

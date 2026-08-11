@@ -16,7 +16,8 @@ export default function HomeScreen() {
     if (!initialized) {
       dispatch(initializeDatabase());
     }
-  }, [initialized]);
+  }, [initialized, dispatch]);
+
 
   return (
     <View>

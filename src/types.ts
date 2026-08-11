@@ -20,3 +20,11 @@ export interface ExercicioTreino{
     descanso: number;
     carga: number;
 }
+
+export interface ExercicioConfigItem {
+    exercicio: Exercicio;
+    series: number;
+    repeticoes: number;
+    descanso: number;
+    carga: number;
+}

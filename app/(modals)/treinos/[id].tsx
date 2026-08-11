@@ -1,69 +1,890 @@
-import { getTreinoById } from "@/src/database/treinoRepository";
-import { Treino } from "@/src/types";
+import {
+  addExercicioTreino,
+  deleteExercicioTreinoById,
+  updateExercicioTreino,
+} from "@/src/database/exercicioTreinoRepository";
+import { getExercicios } from "@/src/database/exercicioRepository";
+import { getTreinoById, updateTreino } from "@/src/database/treinoRepository";
+import { AppDispatch } from "@/src/store";
+import { carregarTreinos } from "@/src/store/treinoSlice";
+import { Exercicio, ExercicioTreino, Treino } from "@/src/types";
 import { useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Text, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useDispatch } from "react-redux";
 
 export default function TreinoScreen() {
-  const [treino, setTreino] = useState<Treino | null>(null);
-  const [loading, setLoading] = useState(true);
-
+  const dispatch = useDispatch<AppDispatch>();
   const params = useLocalSearchParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
 
-  useEffect(() => {
-    async function carregarTreino() {
-      if (!id) return;
+  const [treino, setTreino] = useState<Treino | null>(null);
+  const [loading, setLoading] = useState(true);
 
-      const treinoDb = await getTreinoById(Number(id));
-      setTreino(treinoDb);
-      setLoading(false);
+  // Estados do Modo Edição
+  const [modoEdicao, setModoEdicao] = useState(false);
+  const [nomeEditado, setNomeEditado] = useState("");
+  const [exerciciosEditados, setExerciciosEditados] = useState<ExercicioTreino[]>([]);
+  const [idsParaExcluir, setIdsParaExcluir] = useState<number[]>([]);
+  const [salvando, setSalvando] = useState(false);
+
+  // Catálogo de Exercícios para Adicionar durante a edição
+  const [todosExercicios, setTodosExercicios] = useState<Exercicio[]>([]);
+  const [mostrarCatalogo, setMostrarCatalogo] = useState(false);
+  const [pesquisa, setPesquisa] = useState("");
+
+  const carregarTreino = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    const treinoDb = await getTreinoById(Number(id));
+    setTreino(treinoDb);
+    if (treinoDb) {
+      setNomeEditado(treinoDb.nome);
+      setExerciciosEditados(treinoDb.exercicios || []);
+    }
+    setLoading(false);
+  }, [id]);
+
+  useEffect(() => {
+    carregarTreino();
+  }, [carregarTreino]);
+
+  const iniciarEdicao = async () => {
+    if (!treino) return;
+    setNomeEditado(treino.nome);
+    setExerciciosEditados(treino.exercicios ? [...treino.exercicios] : []);
+    setIdsParaExcluir([]);
+    setMostrarCatalogo(false);
+
+    // Carrega o catálogo caso queira adicionar novos exercícios
+    const listaEx = await getExercicios();
+    setTodosExercicios(listaEx);
+
+    setModoEdicao(true);
+  };
+
+  const cancelarEdicao = () => {
+    if (!treino) return;
+    setNomeEditado(treino.nome);
+    setExerciciosEditados(treino.exercicios ? [...treino.exercicios] : []);
+    setIdsParaExcluir([]);
+    setMostrarCatalogo(false);
+    setModoEdicao(false);
+  };
+
+  const atualizarCampoExercicio = (
+    index: number,
+    campo: "series" | "repeticoes" | "carga" | "descanso",
+    valorTexto: string
+  ) => {
+    const valorNum = valorTexto === "" ? 0 : parseInt(valorTexto, 10);
+    const valorValido = isNaN(valorNum) ? 0 : Math.max(0, valorNum);
+
+    setExerciciosEditados((prev) => {
+      const novaLista = [...prev];
+      novaLista[index] = {
+        ...novaLista[index],
+        [campo]: valorValido,
+      };
+      return novaLista;
+    });
+  };
+
+  const alterarValorRapido = (
+    index: number,
+    campo: "series" | "repeticoes" | "carga" | "descanso",
+    delta: number,
+    minimo: number = 0
+  ) => {
+    setExerciciosEditados((prev) => {
+      const novaLista = [...prev];
+      const atual = Number(novaLista[index][campo]) || 0;
+      novaLista[index] = {
+        ...novaLista[index],
+        [campo]: Math.max(minimo, atual + delta),
+      };
+      return novaLista;
+    });
+  };
+
+  const removerExercicioDoTreino = (index: number) => {
+    const item = exerciciosEditados[index];
+    if (item.id) {
+      setIdsParaExcluir((prev) => [...prev, item.id]);
+    }
+    setExerciciosEditados((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const adicionarExercicioAoTreinoLocal = (ex: Exercicio) => {
+    const novoItem: ExercicioTreino = {
+      id: 0, // id 0 indica que ainda precisa ser inserido no banco
+      treino_id: Number(id),
+      exercicio_id: ex.id,
+      exercicio: ex,
+      series: 4,
+      repeticoes: 10,
+      carga: 0,
+      descanso: 60,
+    };
+
+    setExerciciosEditados((prev) => [...prev, novoItem]);
+    setMostrarCatalogo(false);
+  };
+
+  const salvarAlteracoes = async () => {
+    Keyboard.dismiss();
+
+    if (!nomeEditado.trim()) {
+      Alert.alert("Atenção", "O nome do treino não pode ficar vazio!");
+      return;
     }
 
-    carregarTreino();
-    // alert(id);
-  }, [id]);
+    if (exerciciosEditados.length === 0) {
+      Alert.alert("Atenção", "O treino precisa ter ao menos 1 exercício!");
+      return;
+    }
+
+    setSalvando(true);
+
+    try {
+      const treinoIdNum = Number(id);
+
+      // 1. Atualiza o nome do treino se mudou
+      if (treino && nomeEditado.trim() !== treino.nome) {
+        await updateTreino(treinoIdNum, nomeEditado.trim());
+      }
+
+      // 2. Exclui os exercícios removidos
+      for (const idExcluir of idsParaExcluir) {
+        await deleteExercicioTreinoById(idExcluir);
+      }
+
+      // 3. Atualiza ou insere os exercícios editados
+      for (const item of exerciciosEditados) {
+        if (item.id && item.id > 0) {
+          // Atualiza existente
+          await updateExercicioTreino(item.id, {
+            series: Number(item.series) || 1,
+            repeticoes: Number(item.repeticoes) || 1,
+            carga: Number(item.carga) || 0,
+            descanso: Number(item.descanso) || 30,
+          });
+        } else {
+          // Insere novo
+          await addExercicioTreino({
+            treinoId: treinoIdNum,
+            exercicioId: item.exercicio_id,
+            series: Number(item.series) || 1,
+            repeticoes: Number(item.repeticoes) || 1,
+            carga: Number(item.carga) || 0,
+            descanso: Number(item.descanso) || 30,
+          });
+        }
+      }
+
+      // 4. Recarrega os dados e sincroniza Redux
+      await carregarTreino();
+      dispatch(carregarTreinos());
+
+      setModoEdicao(false);
+      Alert.alert("Sucesso! 🎉", "Treino atualizado com sucesso!");
+    } catch (e) {
+      console.error(e);
+      Alert.alert("Erro", "Erro ao salvar alterações no treino.");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const exerciciosFiltrados = todosExercicios.filter((ex) =>
+    ex.nome.toLowerCase().includes(pesquisa.toLowerCase())
+  );
 
   if (loading) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator size="large" color="#0000ff" />
-        <Text style={{ marginTop: 10 }}>Carregando treino...</Text>
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#00b894" />
+        <Text style={styles.loadingText}>Carregando treino...</Text>
       </View>
     );
   }
 
   if (!treino) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <Text>Nenhum treino encontrado.</Text>
+      <View style={styles.centerContainer}>
+        <Text style={styles.emptyText}>Nenhum treino encontrado.</Text>
       </View>
     );
   }
 
   return (
-    <View style={{ padding: 20 }}>
-      <Text style={{ fontSize: 20, fontWeight: "bold", marginBottom: 10 }}>
-        Treino: {treino.nome}
-      </Text>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
+    >
+      <View style={styles.container}>
+        {/* Cabeçalho */}
+        <View style={styles.headerCard}>
+          {!modoEdicao ? (
+            <View style={styles.headerRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.headerTitle}>🏋️ {treino.nome}</Text>
+                <Text style={styles.headerSubtitle}>
+                  {treino.exercicios?.length || 0} exercício(s) configurado(s)
+                </Text>
+              </View>
+              <TouchableOpacity onPress={iniciarEdicao} style={styles.btnEditar}>
+                <Text style={styles.btnEditarText}>✏️ Editar</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View>
+              <Text style={styles.labelEdicao}>Nome do Treino</Text>
+              <TextInput
+                style={styles.inputNome}
+                value={nomeEditado}
+                onChangeText={setNomeEditado}
+                placeholder="Nome do Treino"
+              />
+              <View style={styles.edicaoActionsRow}>
+                <TouchableOpacity
+                  onPress={cancelarEdicao}
+                  disabled={salvando}
+                  style={styles.btnCancelar}
+                >
+                  <Text style={styles.btnCancelarText}>❌ Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={salvarAlteracoes}
+                  disabled={salvando}
+                  style={styles.btnSalvar}
+                >
+                  {salvando ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.btnSalvarText}>💾 Salvar</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </View>
 
-      <FlatList
-        data={treino.exercicios}
-        keyExtractor={(item) => item.id?.toString() || ""}
-        renderItem={({ item }) => (
-          <View style={{ marginBottom: 15 }}>
-            <Text style={{ fontWeight: "bold" }}>
-              Exercício: {item.exercicio?.nome}
-            </Text>
-            {item.exercicio?.descricao && (
-              <Text>Descrição: {item.exercicio.descricao}</Text>
+        {/* Conteúdo: Modo Leitura vs Modo Edição */}
+        {!modoEdicao ? (
+          /* MODO LEITURA */
+          <FlatList
+            data={treino.exercicios}
+            keyExtractor={(item, idx) => item.id?.toString() || String(idx)}
+            contentContainerStyle={styles.listContent}
+            renderItem={({ item, index }) => (
+              <View style={styles.exerciseCard}>
+                <View style={styles.exerciseHeader}>
+                  <Text style={styles.exerciseIndex}>{index + 1}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.exerciseNome}>{item.exercicio?.nome}</Text>
+                    {item.exercicio?.descricao ? (
+                      <Text style={styles.exerciseDescricao}>
+                        {item.exercicio.descricao}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+
+                {/* Badges de Parâmetros */}
+                <View style={styles.badgesRow}>
+                  <View style={[styles.badge, styles.badgeSeries]}>
+                    <Text style={styles.badgeLabel}>🔁 Séries</Text>
+                    <Text style={styles.badgeValue}>{item.series}x</Text>
+                  </View>
+
+                  <View style={[styles.badge, styles.badgeReps]}>
+                    <Text style={styles.badgeLabel}>🔢 Reps</Text>
+                    <Text style={styles.badgeValue}>{item.repeticoes}</Text>
+                  </View>
+
+                  <View style={[styles.badge, styles.badgeCarga]}>
+                    <Text style={styles.badgeLabel}>⚖️ Carga</Text>
+                    <Text style={styles.badgeValue}>{item.carga || 0} kg</Text>
+                  </View>
+
+                  <View style={[styles.badge, styles.badgeDescanso]}>
+                    <Text style={styles.badgeLabel}>⏱️ Descanso</Text>
+                    <Text style={styles.badgeValue}>{item.descanso}s</Text>
+                  </View>
+                </View>
+              </View>
             )}
-            <Text>Repetições: {item.repeticoes}</Text>
-            <Text>Séries: {item.series}</Text>
-            <Text>Descanso: {item.descanso}s</Text>
-          </View>
+            ListEmptyComponent={
+              <View style={styles.emptyListContainer}>
+                <Text style={styles.emptyListText}>
+                  Nenhum exercício cadastrado para este treino.
+                </Text>
+              </View>
+            }
+          />
+        ) : (
+          /* MODO EDIÇÃO */
+          <ScrollView
+            contentContainerStyle={styles.listContentEdicao}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="none"
+          >
+            {exerciciosEditados.map((item, index) => (
+              <View key={item.id ? `id-${item.id}` : `novo-${index}`} style={styles.cardEdicao}>
+                <View style={styles.cardHeaderEdicao}>
+                  <View style={styles.cardTitleContainer}>
+                    <Text style={styles.cardIndexEdicao}>{index + 1}</Text>
+                    <Text style={styles.cardNomeEdicao}>{item.exercicio?.nome}</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => removerExercicioDoTreino(index)}
+                    style={styles.removerBtn}
+                  >
+                    <Text style={styles.removerBtnText}>🗑️</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Inputs com Steppers */}
+                <View style={styles.gridInputs}>
+                  {/* Séries */}
+                  <View style={styles.colInput}>
+                    <Text style={styles.colLabel}>Séries</Text>
+                    <View style={styles.stepperContainer}>
+                      <TouchableOpacity
+                        onPress={() => alterarValorRapido(index, "series", -1, 1)}
+                        style={styles.stepperBtn}
+                      >
+                        <Text style={styles.stepperBtnText}>-</Text>
+                      </TouchableOpacity>
+                      <TextInput
+                        style={styles.gridInput}
+                        keyboardType="numeric"
+                        selectTextOnFocus={true}
+                        value={item.series !== undefined ? String(item.series) : "4"}
+                        onChangeText={(val) =>
+                          atualizarCampoExercicio(index, "series", val)
+                        }
+                      />
+                      <TouchableOpacity
+                        onPress={() => alterarValorRapido(index, "series", 1, 1)}
+                        style={styles.stepperBtn}
+                      >
+                        <Text style={styles.stepperBtnText}>+</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Repetições */}
+                  <View style={styles.colInput}>
+                    <Text style={styles.colLabel}>Reps</Text>
+                    <View style={styles.stepperContainer}>
+                      <TouchableOpacity
+                        onPress={() => alterarValorRapido(index, "repeticoes", -1, 1)}
+                        style={styles.stepperBtn}
+                      >
+                        <Text style={styles.stepperBtnText}>-</Text>
+                      </TouchableOpacity>
+                      <TextInput
+                        style={styles.gridInput}
+                        keyboardType="numeric"
+                        selectTextOnFocus={true}
+                        value={item.repeticoes !== undefined ? String(item.repeticoes) : "10"}
+                        onChangeText={(val) =>
+                          atualizarCampoExercicio(index, "repeticoes", val)
+                        }
+                      />
+                      <TouchableOpacity
+                        onPress={() => alterarValorRapido(index, "repeticoes", 1, 1)}
+                        style={styles.stepperBtn}
+                      >
+                        <Text style={styles.stepperBtnText}>+</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Carga (kg) */}
+                  <View style={styles.colInput}>
+                    <Text style={styles.colLabel}>Carga (kg)</Text>
+                    <View style={styles.stepperContainer}>
+                      <TouchableOpacity
+                        onPress={() => alterarValorRapido(index, "carga", -5, 0)}
+                        style={styles.stepperBtn}
+                      >
+                        <Text style={styles.stepperBtnText}>-</Text>
+                      </TouchableOpacity>
+                      <TextInput
+                        style={styles.gridInput}
+                        keyboardType="numeric"
+                        selectTextOnFocus={true}
+                        value={item.carga !== undefined ? String(item.carga) : "0"}
+                        onChangeText={(val) =>
+                          atualizarCampoExercicio(index, "carga", val)
+                        }
+                      />
+                      <TouchableOpacity
+                        onPress={() => alterarValorRapido(index, "carga", 5, 0)}
+                        style={styles.stepperBtn}
+                      >
+                        <Text style={styles.stepperBtnText}>+</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Descanso (s) */}
+                  <View style={styles.colInput}>
+                    <Text style={styles.colLabel}>Descanso (s)</Text>
+                    <View style={styles.stepperContainer}>
+                      <TouchableOpacity
+                        onPress={() => alterarValorRapido(index, "descanso", -15, 0)}
+                        style={styles.stepperBtn}
+                      >
+                        <Text style={styles.stepperBtnText}>-</Text>
+                      </TouchableOpacity>
+                      <TextInput
+                        style={styles.gridInput}
+                        keyboardType="numeric"
+                        selectTextOnFocus={true}
+                        value={item.descanso !== undefined ? String(item.descanso) : "60"}
+                        onChangeText={(val) =>
+                          atualizarCampoExercicio(index, "descanso", val)
+                        }
+                      />
+                      <TouchableOpacity
+                        onPress={() => alterarValorRapido(index, "descanso", 15, 0)}
+                        style={styles.stepperBtn}
+                      >
+                        <Text style={styles.stepperBtnText}>+</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            ))}
+
+            {/* Adicionar Mais Exercícios ao Treino */}
+            <TouchableOpacity
+              onPress={() => setMostrarCatalogo(!mostrarCatalogo)}
+              style={styles.btnAddExercicio}
+            >
+              <Text style={styles.btnAddExercicioText}>
+                {mostrarCatalogo ? "▲ Fechar Catálogo" : "➕ Adicionar Mais Exercícios"}
+              </Text>
+            </TouchableOpacity>
+
+            {mostrarCatalogo && (
+              <View style={styles.catalogoContainer}>
+                <TextInput
+                  placeholder="🔍 Pesquisar no catálogo..."
+                  placeholderTextColor="#888"
+                  value={pesquisa}
+                  onChangeText={setPesquisa}
+                  style={styles.inputBusca}
+                />
+                {exerciciosFiltrados.map((ex) => {
+                  const jaNoTreino = exerciciosEditados.some(
+                    (item) => item.exercicio_id === ex.id
+                  );
+                  return (
+                    <TouchableOpacity
+                      key={ex.id}
+                      onPress={() => !jaNoTreino && adicionarExercicioAoTreinoLocal(ex)}
+                      style={[
+                        styles.catalogoItem,
+                        jaNoTreino && styles.catalogoItemDesativado,
+                      ]}
+                      disabled={jaNoTreino}
+                    >
+                      <Text style={styles.catalogoItemIcon}>
+                        {jaNoTreino ? "✅" : "➕"}
+                      </Text>
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={[
+                            styles.catalogoItemNome,
+                            jaNoTreino && styles.catalogoItemNomeDesativado,
+                          ]}
+                        >
+                          {ex.nome}
+                        </Text>
+                        {ex.descricao ? (
+                          <Text style={styles.catalogoItemDesc}>{ex.descricao}</Text>
+                        ) : null}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+          </ScrollView>
         )}
-      />
-    </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#f5f6fa",
+  },
+  centerContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f5f6fa",
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "#747d8c",
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "#747d8c",
+  },
+  headerCard: {
+    backgroundColor: "#fff",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderColor: "#e1e2e6",
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#2f3640",
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: "#747d8c",
+  },
+  btnEditar: {
+    backgroundColor: "#0984e3",
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
+  btnEditarText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 13,
+  },
+  labelEdicao: {
+    fontSize: 13,
+    fontWeight: "bold",
+    color: "#747d8c",
+    marginBottom: 4,
+  },
+  inputNome: {
+    backgroundColor: "#f8f9fa",
+    borderWidth: 1,
+    borderColor: "#dcdde1",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#2f3640",
+    marginBottom: 10,
+  },
+  edicaoActionsRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 8,
+  },
+  btnCancelar: {
+    backgroundColor: "#dfe4ea",
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
+  btnCancelarText: {
+    color: "#2f3640",
+    fontWeight: "bold",
+    fontSize: 13,
+  },
+  btnSalvar: {
+    backgroundColor: "#00b894",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    minWidth: 80,
+    alignItems: "center",
+  },
+  btnSalvarText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 13,
+  },
+  listContent: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+  listContentEdicao: {
+    padding: 16,
+    paddingBottom: 300,
+  },
+  exerciseCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#e1e2e6",
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  exerciseHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  exerciseIndex: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#00b894",
+    color: "#fff",
+    textAlign: "center",
+    lineHeight: 24,
+    fontWeight: "bold",
+    fontSize: 12,
+    marginRight: 10,
+  },
+  exerciseNome: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#2f3640",
+  },
+  exerciseDescricao: {
+    fontSize: 12,
+    color: "#747d8c",
+    marginTop: 2,
+  },
+  badgesRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  badge: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    alignItems: "center",
+    backgroundColor: "#f8f9fa",
+    borderWidth: 1,
+    borderColor: "#e9ecef",
+  },
+  badgeSeries: {
+    backgroundColor: "#eef2ff",
+    borderColor: "#c7d2fe",
+  },
+  badgeReps: {
+    backgroundColor: "#ecfdf5",
+    borderColor: "#a7f3d0",
+  },
+  badgeCarga: {
+    backgroundColor: "#fffbeb",
+    borderColor: "#fde68a",
+  },
+  badgeDescanso: {
+    backgroundColor: "#fdf2f8",
+    borderColor: "#fbcfe8",
+  },
+  badgeLabel: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#6b7280",
+    marginBottom: 2,
+  },
+  badgeValue: {
+    fontSize: 13,
+    fontWeight: "bold",
+    color: "#1f2937",
+  },
+  cardEdicao: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#dcdde1",
+  },
+  cardHeaderEdicao: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderColor: "#f1f2f6",
+    paddingBottom: 8,
+  },
+  cardTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  cardIndexEdicao: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "#0984e3",
+    color: "#fff",
+    textAlign: "center",
+    lineHeight: 22,
+    fontWeight: "bold",
+    fontSize: 12,
+    marginRight: 8,
+  },
+  cardNomeEdicao: {
+    fontSize: 15,
+    fontWeight: "bold",
+    color: "#2f3640",
+  },
+  removerBtn: {
+    padding: 4,
+  },
+  removerBtnText: {
+    fontSize: 16,
+  },
+  gridInputs: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 6,
+  },
+  colInput: {
+    flex: 1,
+    alignItems: "center",
+  },
+  colLabel: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#747d8c",
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  stepperContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f1f2f6",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#dcdde1",
+    overflow: "hidden",
+    width: "100%",
+  },
+  stepperBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#e4e7eb",
+  },
+  stepperBtnText: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#2f3640",
+  },
+  gridInput: {
+    flex: 1,
+    backgroundColor: "#fff",
+    textAlign: "center",
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+    fontSize: 13,
+    fontWeight: "bold",
+    color: "#2f3640",
+    minWidth: 26,
+  },
+  btnAddExercicio: {
+    backgroundColor: "#e8f5e9",
+    borderWidth: 1,
+    borderColor: "#a7f3d0",
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginVertical: 10,
+  },
+  btnAddExercicioText: {
+    color: "#059669",
+    fontWeight: "bold",
+    fontSize: 14,
+  },
+  catalogoContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#dcdde1",
+    marginBottom: 20,
+  },
+  inputBusca: {
+    backgroundColor: "#f1f2f6",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    color: "#2f3640",
+    marginBottom: 10,
+  },
+  catalogoItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderColor: "#f1f2f6",
+  },
+  catalogoItemDesativado: {
+    opacity: 0.5,
+  },
+  catalogoItemIcon: {
+    fontSize: 16,
+    marginRight: 10,
+  },
+  catalogoItemNome: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#2f3640",
+  },
+  catalogoItemNomeDesativado: {
+    color: "#747d8c",
+  },
+  catalogoItemDesc: {
+    fontSize: 12,
+    color: "#a4b0be",
+  },
+  emptyListContainer: {
+    padding: 30,
+    alignItems: "center",
+  },
+  emptyListText: {
+    color: "#a4b0be",
+    fontSize: 14,
+    textAlign: "center",
+  },
+});
