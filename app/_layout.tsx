@@ -1,3 +1,4 @@
+import { AlertProvider } from "@/src/context/AlertContext";
 import { ThemeProvider, useTheme } from "@/src/context/ThemeContext";
 import { store } from "@/src/store";
 import {
@@ -52,7 +53,7 @@ function RootNavigator() {
             name="(modals)/exercicio/novoExercicio"
             options={{
               presentation: "modal",
-              title: "➕ Novo Exercício",
+              title: "Novo Exercício",
               contentStyle: { backgroundColor: colors.background },
             }}
           />
@@ -61,7 +62,7 @@ function RootNavigator() {
             name="(modals)/treinos/novoTreino"
             options={{
               presentation: "modal",
-              title: "➕ Novo Treino",
+              title: "Novo Treino",
               contentStyle: { backgroundColor: colors.background },
             }}
           />
@@ -93,7 +94,9 @@ export default function RootLayout() {
   return (
     <Provider store={store}>
       <ThemeProvider>
-        <RootNavigator />
+        <AlertProvider>
+          <RootNavigator />
+        </AlertProvider>
       </ThemeProvider>
     </Provider>
   );

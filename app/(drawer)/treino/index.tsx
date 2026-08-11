@@ -1,3 +1,4 @@
+import { useAlert } from "@/src/context/AlertContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { AppDispatch, RootState } from "@/src/store";
 import { carregarTreinos, removerTreino } from "@/src/store/treinoSlice";
@@ -7,7 +8,6 @@ import { router } from "expo-router";
 import { useCallback } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   StyleSheet,
   Text,
@@ -19,6 +19,7 @@ import { useDispatch, useSelector } from "react-redux";
 export default function TreinosScreen() {
   const dispatch = useDispatch<AppDispatch>();
   const { colors } = useTheme();
+  const { showConfirm } = useAlert();
 
   const treinos = useSelector((state: RootState) => state.treinos.lista);
   const loading = useSelector((state: RootState) => state.treinos.loading);
@@ -30,20 +31,15 @@ export default function TreinosScreen() {
   );
 
   function handleLongPress(id: number, nome: string) {
-    Alert.alert(
+    showConfirm(
       "Excluir Treino",
       `Tem certeza que deseja excluir "${nome}"?`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Excluir",
-          style: "destructive",
-          onPress: async () => {
-            await dispatch(removerTreino(id));
-            dispatch(carregarTreinos());
-          },
-        },
-      ]
+      async () => {
+        await dispatch(removerTreino(id));
+        dispatch(carregarTreinos());
+      },
+      true,
+      "Excluir"
     );
   }
 

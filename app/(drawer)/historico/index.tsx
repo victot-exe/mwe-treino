@@ -1,3 +1,4 @@
+import { useAlert } from "@/src/context/AlertContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import {
   deleteHistoricoSessao,
@@ -10,7 +11,6 @@ import { router } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -21,6 +21,7 @@ import {
 
 export default function HistoricoScreen() {
   const { colors } = useTheme();
+  const { showConfirm } = useAlert();
   const [sessoes, setSessoes] = useState<HistoricoSessao[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -59,20 +60,15 @@ export default function HistoricoScreen() {
   };
 
   const confirmarExclusao = (sessao: HistoricoSessao) => {
-    Alert.alert(
+    showConfirm(
       "Excluir Registro",
       `Deseja realmente remover o registro de ${sessao.nome_treino} do histórico?`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Excluir",
-          style: "destructive",
-          onPress: async () => {
-            await deleteHistoricoSessao(sessao.id);
-            carregarHistorico();
-          },
-        },
-      ]
+      async () => {
+        await deleteHistoricoSessao(sessao.id);
+        carregarHistorico();
+      },
+      true,
+      "Excluir"
     );
   };
 

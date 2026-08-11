@@ -1,3 +1,4 @@
+import { useAlert } from "@/src/context/AlertContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { updateExercicioTreino } from "@/src/database/exercicioTreinoRepository";
 import { salvarSessaoTreino } from "@/src/database/historicoRepository";
@@ -13,7 +14,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   AppState,
   AppStateStatus,
   Keyboard,
@@ -40,6 +40,7 @@ interface ProgressoExercicio {
 
 export default function TreinarScreen() {
   const { colors } = useTheme();
+  const { showConfirm } = useAlert();
   const params = useLocalSearchParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
 
@@ -365,19 +366,15 @@ export default function TreinarScreen() {
 
   // Confirmar saída do treino
   const confirmarEncerramento = () => {
-    Alert.alert(
+    showConfirm(
       "Finalizar Treino",
       "Deseja realmente encerrar a sessão de treino agora?",
-      [
-        { text: "Continuar Treinando", style: "cancel" },
-        {
-          text: "Encerrar e Salvar",
-          style: "destructive",
-          onPress: () => {
-            finalizarESalvarTreino();
-          },
-        },
-      ]
+      () => {
+        finalizarESalvarTreino();
+      },
+      true,
+      "Encerrar e Salvar",
+      "Continuar Treinando"
     );
   };
 
@@ -449,16 +446,17 @@ export default function TreinarScreen() {
           {/* Botão de Fechar na Direita */}
           <TouchableOpacity
             onPress={() => {
-              Alert.alert("Sair do Treino", "Deseja voltar para a tela anterior?", [
-                { text: "Cancelar", style: "cancel" },
-                {
-                  text: "Sair",
-                  onPress: () => {
-                    pularDescanso();
-                    router.back();
-                  },
+              showConfirm(
+                "Sair do Treino",
+                "Deseja voltar para a tela anterior?",
+                () => {
+                  pularDescanso();
+                  router.back();
                 },
-              ]);
+                false,
+                "Sair",
+                "Cancelar"
+              );
             }}
             style={[
               styles.btnVoltar,

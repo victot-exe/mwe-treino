@@ -96,6 +96,22 @@ export default function HomeScreen() {
           </Text>
         </TouchableOpacity>
 
+        {/* Card: Biblioteca de Exercícios */}
+        <TouchableOpacity
+          onPress={() => router.push("/(drawer)/exercicios" as any)}
+          activeOpacity={0.8}
+          style={[
+            styles.cardAcao,
+            { backgroundColor: colors.card, borderColor: colors.cardBorder },
+          ]}
+        >
+          <MaterialCommunityIcons name="format-list-bulleted" size={28} color={colors.accent} />
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Biblioteca de Exercícios</Text>
+          <Text style={[styles.cardDesc, { color: colors.textSecondary }]}>
+            Explore, filtre por grupo muscular e edite seu catálogo de movimentos.
+          </Text>
+        </TouchableOpacity>
+
         {/* Card: Configurações & Aparência */}
         <TouchableOpacity
           onPress={() => router.push("/(drawer)/configuracoes" as any)}
@@ -105,7 +121,7 @@ export default function HomeScreen() {
             { backgroundColor: colors.card, borderColor: colors.cardBorder },
           ]}
         >
-          <Ionicons name="color-palette-outline" size={28} color={colors.accent} />
+          <Ionicons name="color-palette-outline" size={28} color={colors.primary} />
           <Text style={[styles.cardTitle, { color: colors.text }]}>Aparência & Tema</Text>
           <Text style={[styles.cardDesc, { color: colors.textSecondary }]}>
             Alterne entre o Modo Escuro Premium ou Modo Claro.
