@@ -1,0 +1,18 @@
+services:
+  apk-builder:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mwe-android-builder
+    container_name: mwe-apk-builder
+    volumes:
+      - .:/app
+    command: >
+      bash -c "
+        npm install &&
+        npx expo prebuild --platform android --clean &&
+        cd android &&
+        ./gradlew assembleRelease &&
+        cp app/build/outputs/apk/release/app-release.apk /app/mwe-treino.apk &&
+        echo '🎉 APK GERADO COM SUCESSO: mwe-treino.apk'
+      "
