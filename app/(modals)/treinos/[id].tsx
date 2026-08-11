@@ -8,7 +8,7 @@ import { getTreinoById, updateTreino } from "@/src/database/treinoRepository";
 import { AppDispatch } from "@/src/store";
 import { carregarTreinos } from "@/src/store/treinoSlice";
 import { Exercicio, ExercicioTreino, Treino } from "@/src/types";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -287,56 +287,71 @@ export default function TreinoScreen() {
         {/* Conteúdo: Modo Leitura vs Modo Edição */}
         {!modoEdicao ? (
           /* MODO LEITURA */
-          <FlatList
-            data={treino.exercicios}
-            keyExtractor={(item, idx) => item.id?.toString() || String(idx)}
-            contentContainerStyle={styles.listContent}
-            renderItem={({ item, index }) => (
-              <View style={styles.exerciseCard}>
-                <View style={styles.exerciseHeader}>
-                  <Text style={styles.exerciseIndex}>{index + 1}</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.exerciseNome}>{item.exercicio?.nome}</Text>
-                    {item.exercicio?.descricao ? (
-                      <Text style={styles.exerciseDescricao}>
-                        {item.exercicio.descricao}
-                      </Text>
-                    ) : null}
+          <View style={{ flex: 1 }}>
+            <FlatList
+              data={treino.exercicios}
+              keyExtractor={(item, idx) => item.id?.toString() || String(idx)}
+              contentContainerStyle={styles.listContent}
+              renderItem={({ item, index }) => (
+                <View style={styles.exerciseCard}>
+                  <View style={styles.exerciseHeader}>
+                    <Text style={styles.exerciseIndex}>{index + 1}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.exerciseNome}>{item.exercicio?.nome}</Text>
+                      {item.exercicio?.descricao ? (
+                        <Text style={styles.exerciseDescricao}>
+                          {item.exercicio.descricao}
+                        </Text>
+                      ) : null}
+                    </View>
+                  </View>
+
+                  {/* Badges de Parâmetros */}
+                  <View style={styles.badgesRow}>
+                    <View style={[styles.badge, styles.badgeSeries]}>
+                      <Text style={styles.badgeLabel}>🔁 Séries</Text>
+                      <Text style={styles.badgeValue}>{item.series}x</Text>
+                    </View>
+
+                    <View style={[styles.badge, styles.badgeReps]}>
+                      <Text style={styles.badgeLabel}>🔢 Reps</Text>
+                      <Text style={styles.badgeValue}>{item.repeticoes}</Text>
+                    </View>
+
+                    <View style={[styles.badge, styles.badgeCarga]}>
+                      <Text style={styles.badgeLabel}>⚖️ Carga</Text>
+                      <Text style={styles.badgeValue}>{item.carga || 0} kg</Text>
+                    </View>
+
+                    <View style={[styles.badge, styles.badgeDescanso]}>
+                      <Text style={styles.badgeLabel}>⏱️ Descanso</Text>
+                      <Text style={styles.badgeValue}>{item.descanso}s</Text>
+                    </View>
                   </View>
                 </View>
-
-                {/* Badges de Parâmetros */}
-                <View style={styles.badgesRow}>
-                  <View style={[styles.badge, styles.badgeSeries]}>
-                    <Text style={styles.badgeLabel}>🔁 Séries</Text>
-                    <Text style={styles.badgeValue}>{item.series}x</Text>
-                  </View>
-
-                  <View style={[styles.badge, styles.badgeReps]}>
-                    <Text style={styles.badgeLabel}>🔢 Reps</Text>
-                    <Text style={styles.badgeValue}>{item.repeticoes}</Text>
-                  </View>
-
-                  <View style={[styles.badge, styles.badgeCarga]}>
-                    <Text style={styles.badgeLabel}>⚖️ Carga</Text>
-                    <Text style={styles.badgeValue}>{item.carga || 0} kg</Text>
-                  </View>
-
-                  <View style={[styles.badge, styles.badgeDescanso]}>
-                    <Text style={styles.badgeLabel}>⏱️ Descanso</Text>
-                    <Text style={styles.badgeValue}>{item.descanso}s</Text>
-                  </View>
+              )}
+              ListEmptyComponent={
+                <View style={styles.emptyListContainer}>
+                  <Text style={styles.emptyListText}>
+                    Nenhum exercício cadastrado para este treino.
+                  </Text>
                 </View>
+              }
+            />
+
+            {/* BOTÃO FIXO INFERIOR: INICIAR TREINO */}
+            {treino.exercicios && treino.exercicios.length > 0 && (
+              <View style={styles.bottomTreinarBar}>
+                <TouchableOpacity
+                  onPress={() => router.push(`/(modals)/treinos/treinar/${id}`)}
+                  style={styles.btnIniciarTreino}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.btnIniciarTreinoText}>🔥 Iniciar Treino</Text>
+                </TouchableOpacity>
               </View>
             )}
-            ListEmptyComponent={
-              <View style={styles.emptyListContainer}>
-                <Text style={styles.emptyListText}>
-                  Nenhum exercício cadastrado para este treino.
-                </Text>
-              </View>
-            }
-          />
+          </View>
         ) : (
           /* MODO EDIÇÃO */
           <ScrollView
@@ -639,7 +654,33 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
-    paddingBottom: 32,
+    paddingBottom: 90,
+  },
+  bottomTreinarBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(245, 246, 250, 0.95)",
+    padding: 16,
+    borderTopWidth: 1,
+    borderColor: "#e1e2e6",
+  },
+  btnIniciarTreino: {
+    backgroundColor: "#00b894",
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    shadowColor: "#00b894",
+    shadowOpacity: 0.35,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  btnIniciarTreinoText: {
+    color: "#fff",
+    fontSize: 17,
+    fontWeight: "bold",
   },
   listContentEdicao: {
     padding: 16,

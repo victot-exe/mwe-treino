@@ -39,6 +39,14 @@ export default function RootLayout() {
               title: "Treino",
             }}
           />
+
+          <Stack.Screen
+            name="(modals)/treinos/treinar/[id]"
+            options={{
+              presentation: "fullScreenModal",
+              headerShown: false,
+            }}
+          />
         </Stack>
       </GestureHandlerRootView>
     </Provider>
