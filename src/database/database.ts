@@ -26,6 +26,11 @@ export async function initDatabase() {
       FOREIGN KEY (treino_id) REFERENCES treinos(id) ON DELETE CASCADE,
       FOREIGN KEY (exercicio_id) REFERENCES exercicios(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS configuracoes (
+      chave TEXT PRIMARY KEY,
+      valor TEXT NOT NULL
+    );
   `);
 
   const existing = await db.getFirstAsync<{ count: number }>(
