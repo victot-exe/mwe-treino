@@ -1,6 +1,7 @@
 import { useTheme } from "@/src/context/ThemeContext";
 import { AppDispatch, RootState } from "@/src/store";
 import { carregarTreinos, removerTreino } from "@/src/store/treinoSlice";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import { useCallback } from "react";
@@ -81,7 +82,7 @@ export default function TreinosScreen() {
                       { backgroundColor: colors.primary },
                     ]}
                   >
-                    <Text style={styles.novoTreinoIcon}>➕</Text>
+                    <Ionicons name="add" size={24} color="#fff" />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.novoTreinoTitle, { color: colors.text }]}>
@@ -96,16 +97,19 @@ export default function TreinosScreen() {
                       Monte uma nova rotina com séries, reps e cargas
                     </Text>
                   </View>
-                  <Text style={[styles.setaNovo, { color: colors.primary }]}>›</Text>
+                  <Ionicons name="chevron-forward" size={20} color={colors.primary} />
                 </View>
               </TouchableOpacity>
 
               {/* Título da Seção */}
               {treinos.length > 0 && (
                 <View style={styles.sectionTitleRow}>
-                  <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                    💪 Meus Treinos ({treinos.length})
-                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <MaterialCommunityIcons name="dumbbell" size={18} color={colors.accent} />
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                      Meus Treinos ({treinos.length})
+                    </Text>
+                  </View>
                   <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
                     Segure para excluir
                   </Text>
@@ -133,7 +137,7 @@ export default function TreinosScreen() {
                   { backgroundColor: colors.accentLight },
                 ]}
               >
-                <Text style={styles.treinoIcon}>💪</Text>
+                <MaterialCommunityIcons name="dumbbell" size={22} color={colors.accent} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.treinoNome, { color: colors.text }]}>{item.nome}</Text>
@@ -143,12 +147,19 @@ export default function TreinosScreen() {
                     : "Toque para ver os detalhes"}
                 </Text>
               </View>
-              <Text style={[styles.seta, { color: colors.textMuted }]}>›</Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
             </TouchableOpacity>
           )}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyEmoji}>🏋️</Text>
+              <View
+                style={[
+                  styles.emptyIconCircle,
+                  { backgroundColor: colors.cardSecondary },
+                ]}
+              >
+                <MaterialCommunityIcons name="dumbbell" size={42} color={colors.primary} />
+              </View>
               <Text style={[styles.emptyTitle, { color: colors.text }]}>
                 Nenhum treino criado ainda
               </Text>
@@ -281,9 +292,13 @@ const styles = StyleSheet.create({
     padding: 30,
     marginTop: 20,
   },
-  emptyEmoji: {
-    fontSize: 44,
-    marginBottom: 10,
+  emptyIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
   },
   emptyTitle: {
     fontSize: 17,

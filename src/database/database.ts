@@ -31,6 +31,28 @@ export async function initDatabase() {
       chave TEXT PRIMARY KEY,
       valor TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS historico_sessoes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      treino_id INTEGER,
+      nome_treino TEXT NOT NULL,
+      data_inicio TEXT NOT NULL,
+      data_fim TEXT NOT NULL,
+      duracao_segundos INTEGER NOT NULL,
+      exercicios_concluidos INTEGER NOT NULL,
+      total_exercicios INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS historico_sessao_exercicios (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sessao_id INTEGER NOT NULL,
+      exercicio_id INTEGER,
+      nome_exercicio TEXT NOT NULL,
+      series_feitas INTEGER NOT NULL,
+      repeticoes INTEGER NOT NULL,
+      carga REAL NOT NULL,
+      FOREIGN KEY (sessao_id) REFERENCES historico_sessoes(id) ON DELETE CASCADE
+    );
   `);
 
   const existing = await db.getFirstAsync<{ count: number }>(
