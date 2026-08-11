@@ -1,3 +1,4 @@
+import { useTheme } from "@/src/context/ThemeContext";
 import {
   addExercicioTreino,
   deleteExercicioTreinoById,
@@ -28,6 +29,7 @@ import { useDispatch } from "react-redux";
 
 export default function TreinoScreen() {
   const dispatch = useDispatch<AppDispatch>();
+  const { colors } = useTheme();
   const params = useLocalSearchParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
 
@@ -130,7 +132,7 @@ export default function TreinoScreen() {
 
   const adicionarExercicioAoTreinoLocal = (ex: Exercicio) => {
     const novoItem: ExercicioTreino = {
-      id: 0, // id 0 indica que ainda precisa ser inserido no banco
+      id: 0,
       treino_id: Number(id),
       exercicio_id: ex.id,
       exercicio: ex,
@@ -175,7 +177,6 @@ export default function TreinoScreen() {
       // 3. Atualiza ou insere os exercícios editados
       for (const item of exerciciosEditados) {
         if (item.id && item.id > 0) {
-          // Atualiza existente
           await updateExercicioTreino(item.id, {
             series: Number(item.series) || 1,
             repeticoes: Number(item.repeticoes) || 1,
@@ -183,7 +184,6 @@ export default function TreinoScreen() {
             descanso: Number(item.descanso) || 30,
           });
         } else {
-          // Insere novo
           await addExercicioTreino({
             treinoId: treinoIdNum,
             exercicioId: item.exercicio_id,
@@ -195,7 +195,6 @@ export default function TreinoScreen() {
         }
       }
 
-      // 4. Recarrega os dados e sincroniza Redux
       await carregarTreino();
       dispatch(carregarTreinos());
 
@@ -215,63 +214,90 @@ export default function TreinoScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#00b894" />
-        <Text style={styles.loadingText}>Carregando treino...</Text>
+      <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+          Carregando treino...
+        </Text>
       </View>
     );
   }
 
   if (!treino) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.emptyText}>Nenhum treino encontrado.</Text>
+      <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
+        <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+          Nenhum treino encontrado.
+        </Text>
       </View>
     );
   }
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
+      style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
     >
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         {/* Cabeçalho */}
-        <View style={styles.headerCard}>
+        <View
+          style={[
+            styles.headerCard,
+            { backgroundColor: colors.card, borderColor: colors.cardBorder },
+          ]}
+        >
           {!modoEdicao ? (
             <View style={styles.headerRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.headerTitle}>🏋️ {treino.nome}</Text>
-                <Text style={styles.headerSubtitle}>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>
+                  🏋️ {treino.nome}
+                </Text>
+                <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
                   {treino.exercicios?.length || 0} exercício(s) configurado(s)
                 </Text>
               </View>
-              <TouchableOpacity onPress={iniciarEdicao} style={styles.btnEditar}>
+              <TouchableOpacity
+                onPress={iniciarEdicao}
+                style={[styles.btnEditar, { backgroundColor: colors.accent }]}
+                activeOpacity={0.8}
+              >
                 <Text style={styles.btnEditarText}>✏️ Editar</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <View>
-              <Text style={styles.labelEdicao}>Nome do Treino</Text>
+              <Text style={[styles.labelEdicao, { color: colors.textSecondary }]}>
+                Nome do Treino
+              </Text>
               <TextInput
-                style={styles.inputNome}
+                style={[
+                  styles.inputNome,
+                  {
+                    backgroundColor: colors.inputBg,
+                    borderColor: colors.inputBorder,
+                    color: colors.text,
+                  },
+                ]}
                 value={nomeEditado}
                 onChangeText={setNomeEditado}
                 placeholder="Nome do Treino"
+                placeholderTextColor={colors.textMuted}
               />
               <View style={styles.edicaoActionsRow}>
                 <TouchableOpacity
                   onPress={cancelarEdicao}
                   disabled={salvando}
-                  style={styles.btnCancelar}
+                  style={[styles.btnCancelar, { backgroundColor: colors.cardSecondary }]}
                 >
-                  <Text style={styles.btnCancelarText}>❌ Cancelar</Text>
+                  <Text style={[styles.btnCancelarText, { color: colors.text }]}>
+                    ❌ Cancelar
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={salvarAlteracoes}
                   disabled={salvando}
-                  style={styles.btnSalvar}
+                  style={[styles.btnSalvar, { backgroundColor: colors.primary }]}
                 >
                   {salvando ? (
                     <ActivityIndicator size="small" color="#fff" />
@@ -293,13 +319,32 @@ export default function TreinoScreen() {
               keyExtractor={(item, idx) => item.id?.toString() || String(idx)}
               contentContainerStyle={styles.listContent}
               renderItem={({ item, index }) => (
-                <View style={styles.exerciseCard}>
+                <View
+                  style={[
+                    styles.exerciseCard,
+                    { backgroundColor: colors.card, borderColor: colors.cardBorder },
+                  ]}
+                >
                   <View style={styles.exerciseHeader}>
-                    <Text style={styles.exerciseIndex}>{index + 1}</Text>
+                    <Text
+                      style={[
+                        styles.exerciseIndex,
+                        { backgroundColor: colors.primary },
+                      ]}
+                    >
+                      {index + 1}
+                    </Text>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.exerciseNome}>{item.exercicio?.nome}</Text>
+                      <Text style={[styles.exerciseNome, { color: colors.text }]}>
+                        {item.exercicio?.nome}
+                      </Text>
                       {item.exercicio?.descricao ? (
-                        <Text style={styles.exerciseDescricao}>
+                        <Text
+                          style={[
+                            styles.exerciseDescricao,
+                            { color: colors.textSecondary },
+                          ]}
+                        >
                           {item.exercicio.descricao}
                         </Text>
                       ) : null}
@@ -308,31 +353,79 @@ export default function TreinoScreen() {
 
                   {/* Badges de Parâmetros */}
                   <View style={styles.badgesRow}>
-                    <View style={[styles.badge, styles.badgeSeries]}>
-                      <Text style={styles.badgeLabel}>🔁 Séries</Text>
-                      <Text style={styles.badgeValue}>{item.series}x</Text>
+                    <View
+                      style={[
+                        styles.badge,
+                        {
+                          backgroundColor: colors.cardSecondary,
+                          borderColor: colors.cardBorder,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.badgeLabel, { color: colors.textSecondary }]}>
+                        🔁 Séries
+                      </Text>
+                      <Text style={[styles.badgeValue, { color: colors.text }]}>
+                        {item.series}x
+                      </Text>
                     </View>
 
-                    <View style={[styles.badge, styles.badgeReps]}>
-                      <Text style={styles.badgeLabel}>🔢 Reps</Text>
-                      <Text style={styles.badgeValue}>{item.repeticoes}</Text>
+                    <View
+                      style={[
+                        styles.badge,
+                        {
+                          backgroundColor: colors.cardSecondary,
+                          borderColor: colors.cardBorder,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.badgeLabel, { color: colors.textSecondary }]}>
+                        🔢 Reps
+                      </Text>
+                      <Text style={[styles.badgeValue, { color: colors.text }]}>
+                        {item.repeticoes}
+                      </Text>
                     </View>
 
-                    <View style={[styles.badge, styles.badgeCarga]}>
-                      <Text style={styles.badgeLabel}>⚖️ Carga</Text>
-                      <Text style={styles.badgeValue}>{item.carga || 0} kg</Text>
+                    <View
+                      style={[
+                        styles.badge,
+                        {
+                          backgroundColor: colors.cardSecondary,
+                          borderColor: colors.cardBorder,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.badgeLabel, { color: colors.textSecondary }]}>
+                        ⚖️ Carga
+                      </Text>
+                      <Text style={[styles.badgeValue, { color: colors.text }]}>
+                        {item.carga || 0} kg
+                      </Text>
                     </View>
 
-                    <View style={[styles.badge, styles.badgeDescanso]}>
-                      <Text style={styles.badgeLabel}>⏱️ Descanso</Text>
-                      <Text style={styles.badgeValue}>{item.descanso}s</Text>
+                    <View
+                      style={[
+                        styles.badge,
+                        {
+                          backgroundColor: colors.cardSecondary,
+                          borderColor: colors.cardBorder,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.badgeLabel, { color: colors.textSecondary }]}>
+                        ⏱️ Descanso
+                      </Text>
+                      <Text style={[styles.badgeValue, { color: colors.text }]}>
+                        {item.descanso}s
+                      </Text>
                     </View>
                   </View>
                 </View>
               )}
               ListEmptyComponent={
                 <View style={styles.emptyListContainer}>
-                  <Text style={styles.emptyListText}>
+                  <Text style={[styles.emptyListText, { color: colors.textSecondary }]}>
                     Nenhum exercício cadastrado para este treino.
                   </Text>
                 </View>
@@ -341,10 +434,18 @@ export default function TreinoScreen() {
 
             {/* BOTÃO FIXO INFERIOR: INICIAR TREINO */}
             {treino.exercicios && treino.exercicios.length > 0 && (
-              <View style={styles.bottomTreinarBar}>
+              <View
+                style={[
+                  styles.bottomTreinarBar,
+                  {
+                    backgroundColor: colors.background,
+                    borderColor: colors.cardBorder,
+                  },
+                ]}
+              >
                 <TouchableOpacity
                   onPress={() => router.push(`/(modals)/treinos/treinar/${id}`)}
-                  style={styles.btnIniciarTreino}
+                  style={[styles.btnIniciarTreino, { backgroundColor: colors.primary }]}
                   activeOpacity={0.8}
                 >
                   <Text style={styles.btnIniciarTreinoText}>🔥 Iniciar Treino</Text>
@@ -360,11 +461,31 @@ export default function TreinoScreen() {
             keyboardDismissMode="none"
           >
             {exerciciosEditados.map((item, index) => (
-              <View key={item.id ? `id-${item.id}` : `novo-${index}`} style={styles.cardEdicao}>
-                <View style={styles.cardHeaderEdicao}>
+              <View
+                key={item.id ? `id-${item.id}` : `novo-${index}`}
+                style={[
+                  styles.cardEdicao,
+                  { backgroundColor: colors.card, borderColor: colors.cardBorder },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.cardHeaderEdicao,
+                    { borderColor: colors.cardSecondary },
+                  ]}
+                >
                   <View style={styles.cardTitleContainer}>
-                    <Text style={styles.cardIndexEdicao}>{index + 1}</Text>
-                    <Text style={styles.cardNomeEdicao}>{item.exercicio?.nome}</Text>
+                    <Text
+                      style={[
+                        styles.cardIndexEdicao,
+                        { backgroundColor: colors.accent },
+                      ]}
+                    >
+                      {index + 1}
+                    </Text>
+                    <Text style={[styles.cardNomeEdicao, { color: colors.text }]}>
+                      {item.exercicio?.nome}
+                    </Text>
                   </View>
                   <TouchableOpacity
                     onPress={() => removerExercicioDoTreino(index)}
@@ -378,16 +499,34 @@ export default function TreinoScreen() {
                 <View style={styles.gridInputs}>
                   {/* Séries */}
                   <View style={styles.colInput}>
-                    <Text style={styles.colLabel}>Séries</Text>
-                    <View style={styles.stepperContainer}>
+                    <Text style={[styles.colLabel, { color: colors.textSecondary }]}>
+                      Séries
+                    </Text>
+                    <View
+                      style={[
+                        styles.stepperContainer,
+                        {
+                          backgroundColor: colors.stepperBg,
+                          borderColor: colors.inputBorder,
+                        },
+                      ]}
+                    >
                       <TouchableOpacity
                         onPress={() => alterarValorRapido(index, "series", -1, 1)}
-                        style={styles.stepperBtn}
+                        style={[
+                          styles.stepperBtn,
+                          { backgroundColor: colors.stepperBtn },
+                        ]}
                       >
-                        <Text style={styles.stepperBtnText}>-</Text>
+                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>
+                          -
+                        </Text>
                       </TouchableOpacity>
                       <TextInput
-                        style={styles.gridInput}
+                        style={[
+                          styles.gridInput,
+                          { backgroundColor: colors.inputBg, color: colors.text },
+                        ]}
                         keyboardType="numeric"
                         selectTextOnFocus={true}
                         value={item.series !== undefined ? String(item.series) : "4"}
@@ -397,53 +536,101 @@ export default function TreinoScreen() {
                       />
                       <TouchableOpacity
                         onPress={() => alterarValorRapido(index, "series", 1, 1)}
-                        style={styles.stepperBtn}
+                        style={[
+                          styles.stepperBtn,
+                          { backgroundColor: colors.stepperBtn },
+                        ]}
                       >
-                        <Text style={styles.stepperBtnText}>+</Text>
+                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>
+                          +
+                        </Text>
                       </TouchableOpacity>
                     </View>
                   </View>
 
                   {/* Repetições */}
                   <View style={styles.colInput}>
-                    <Text style={styles.colLabel}>Reps</Text>
-                    <View style={styles.stepperContainer}>
+                    <Text style={[styles.colLabel, { color: colors.textSecondary }]}>
+                      Reps
+                    </Text>
+                    <View
+                      style={[
+                        styles.stepperContainer,
+                        {
+                          backgroundColor: colors.stepperBg,
+                          borderColor: colors.inputBorder,
+                        },
+                      ]}
+                    >
                       <TouchableOpacity
                         onPress={() => alterarValorRapido(index, "repeticoes", -1, 1)}
-                        style={styles.stepperBtn}
+                        style={[
+                          styles.stepperBtn,
+                          { backgroundColor: colors.stepperBtn },
+                        ]}
                       >
-                        <Text style={styles.stepperBtnText}>-</Text>
+                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>
+                          -
+                        </Text>
                       </TouchableOpacity>
                       <TextInput
-                        style={styles.gridInput}
+                        style={[
+                          styles.gridInput,
+                          { backgroundColor: colors.inputBg, color: colors.text },
+                        ]}
                         keyboardType="numeric"
                         selectTextOnFocus={true}
-                        value={item.repeticoes !== undefined ? String(item.repeticoes) : "10"}
+                        value={
+                          item.repeticoes !== undefined ? String(item.repeticoes) : "10"
+                        }
                         onChangeText={(val) =>
                           atualizarCampoExercicio(index, "repeticoes", val)
                         }
                       />
                       <TouchableOpacity
                         onPress={() => alterarValorRapido(index, "repeticoes", 1, 1)}
-                        style={styles.stepperBtn}
+                        style={[
+                          styles.stepperBtn,
+                          { backgroundColor: colors.stepperBtn },
+                        ]}
                       >
-                        <Text style={styles.stepperBtnText}>+</Text>
+                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>
+                          +
+                        </Text>
                       </TouchableOpacity>
                     </View>
                   </View>
 
                   {/* Carga (kg) */}
                   <View style={styles.colInput}>
-                    <Text style={styles.colLabel}>Carga (kg)</Text>
-                    <View style={styles.stepperContainer}>
+                    <Text style={[styles.colLabel, { color: colors.textSecondary }]}>
+                      Carga (kg)
+                    </Text>
+                    <View
+                      style={[
+                        styles.stepperContainer,
+                        {
+                          backgroundColor: colors.stepperBg,
+                          borderColor: colors.inputBorder,
+                        },
+                      ]}
+                    >
                       <TouchableOpacity
                         onPress={() => alterarValorRapido(index, "carga", -5, 0)}
-                        style={styles.stepperBtn}
+                        style={[
+                          styles.stepperBtn,
+                          { backgroundColor: colors.stepperBtn },
+                        ]}
                       >
-                        <Text style={styles.stepperBtnText}>-</Text>
+                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>
+                          -
+                        </Text>
                       </TouchableOpacity>
                       <TextInput
-                        style={styles.gridInput}
+                        style={[
+                          styles.gridInput,
+                          { backgroundColor: colors.inputBg, color: colors.text },
+                        ]}
                         keyboardType="numeric"
                         selectTextOnFocus={true}
                         value={item.carga !== undefined ? String(item.carga) : "0"}
@@ -453,37 +640,67 @@ export default function TreinoScreen() {
                       />
                       <TouchableOpacity
                         onPress={() => alterarValorRapido(index, "carga", 5, 0)}
-                        style={styles.stepperBtn}
+                        style={[
+                          styles.stepperBtn,
+                          { backgroundColor: colors.stepperBtn },
+                        ]}
                       >
-                        <Text style={styles.stepperBtnText}>+</Text>
+                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>
+                          +
+                        </Text>
                       </TouchableOpacity>
                     </View>
                   </View>
 
                   {/* Descanso (s) */}
                   <View style={styles.colInput}>
-                    <Text style={styles.colLabel}>Descanso (s)</Text>
-                    <View style={styles.stepperContainer}>
+                    <Text style={[styles.colLabel, { color: colors.textSecondary }]}>
+                      Descanso (s)
+                    </Text>
+                    <View
+                      style={[
+                        styles.stepperContainer,
+                        {
+                          backgroundColor: colors.stepperBg,
+                          borderColor: colors.inputBorder,
+                        },
+                      ]}
+                    >
                       <TouchableOpacity
                         onPress={() => alterarValorRapido(index, "descanso", -15, 0)}
-                        style={styles.stepperBtn}
+                        style={[
+                          styles.stepperBtn,
+                          { backgroundColor: colors.stepperBtn },
+                        ]}
                       >
-                        <Text style={styles.stepperBtnText}>-</Text>
+                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>
+                          -
+                        </Text>
                       </TouchableOpacity>
                       <TextInput
-                        style={styles.gridInput}
+                        style={[
+                          styles.gridInput,
+                          { backgroundColor: colors.inputBg, color: colors.text },
+                        ]}
                         keyboardType="numeric"
                         selectTextOnFocus={true}
-                        value={item.descanso !== undefined ? String(item.descanso) : "60"}
+                        value={
+                          item.descanso !== undefined ? String(item.descanso) : "60"
+                        }
                         onChangeText={(val) =>
                           atualizarCampoExercicio(index, "descanso", val)
                         }
                       />
                       <TouchableOpacity
                         onPress={() => alterarValorRapido(index, "descanso", 15, 0)}
-                        style={styles.stepperBtn}
+                        style={[
+                          styles.stepperBtn,
+                          { backgroundColor: colors.stepperBtn },
+                        ]}
                       >
-                        <Text style={styles.stepperBtnText}>+</Text>
+                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>
+                          +
+                        </Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -494,21 +711,36 @@ export default function TreinoScreen() {
             {/* Adicionar Mais Exercícios ao Treino */}
             <TouchableOpacity
               onPress={() => setMostrarCatalogo(!mostrarCatalogo)}
-              style={styles.btnAddExercicio}
+              style={[
+                styles.btnAddExercicio,
+                { backgroundColor: colors.accentLight, borderColor: colors.accent },
+              ]}
             >
-              <Text style={styles.btnAddExercicioText}>
+              <Text style={[styles.btnAddExercicioText, { color: colors.accent }]}>
                 {mostrarCatalogo ? "▲ Fechar Catálogo" : "➕ Adicionar Mais Exercícios"}
               </Text>
             </TouchableOpacity>
 
             {mostrarCatalogo && (
-              <View style={styles.catalogoContainer}>
+              <View
+                style={[
+                  styles.catalogoContainer,
+                  { backgroundColor: colors.card, borderColor: colors.cardBorder },
+                ]}
+              >
                 <TextInput
                   placeholder="🔍 Pesquisar no catálogo..."
-                  placeholderTextColor="#888"
+                  placeholderTextColor={colors.textMuted}
                   value={pesquisa}
                   onChangeText={setPesquisa}
-                  style={styles.inputBusca}
+                  style={[
+                    styles.inputBusca,
+                    {
+                      backgroundColor: colors.inputBg,
+                      color: colors.text,
+                      borderColor: colors.inputBorder,
+                    },
+                  ]}
                 />
                 {exerciciosFiltrados.map((ex) => {
                   const jaNoTreino = exerciciosEditados.some(
@@ -520,6 +752,7 @@ export default function TreinoScreen() {
                       onPress={() => !jaNoTreino && adicionarExercicioAoTreinoLocal(ex)}
                       style={[
                         styles.catalogoItem,
+                        { borderColor: colors.cardSecondary },
                         jaNoTreino && styles.catalogoItemDesativado,
                       ]}
                       disabled={jaNoTreino}
@@ -531,13 +764,21 @@ export default function TreinoScreen() {
                         <Text
                           style={[
                             styles.catalogoItemNome,
-                            jaNoTreino && styles.catalogoItemNomeDesativado,
+                            { color: colors.text },
+                            jaNoTreino && { color: colors.textMuted },
                           ]}
                         >
                           {ex.nome}
                         </Text>
                         {ex.descricao ? (
-                          <Text style={styles.catalogoItemDesc}>{ex.descricao}</Text>
+                          <Text
+                            style={[
+                              styles.catalogoItemDesc,
+                              { color: colors.textSecondary },
+                            ]}
+                          >
+                            {ex.descricao}
+                          </Text>
                         ) : null}
                       </View>
                     </TouchableOpacity>
@@ -555,29 +796,23 @@ export default function TreinoScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f6fa",
   },
   centerContainer: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f5f6fa",
     padding: 20,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: "#747d8c",
   },
   emptyText: {
     fontSize: 16,
-    color: "#747d8c",
   },
   headerCard: {
-    backgroundColor: "#fff",
     padding: 16,
     borderBottomWidth: 1,
-    borderColor: "#e1e2e6",
   },
   headerRow: {
     flexDirection: "row",
@@ -587,15 +822,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: "bold",
-    color: "#2f3640",
     marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 14,
-    color: "#747d8c",
   },
   btnEditar: {
-    backgroundColor: "#0984e3",
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 8,
@@ -608,19 +840,15 @@ const styles = StyleSheet.create({
   labelEdicao: {
     fontSize: 13,
     fontWeight: "bold",
-    color: "#747d8c",
-    marginBottom: 4,
+    marginBottom: 6,
   },
   inputNome: {
-    backgroundColor: "#f8f9fa",
     borderWidth: 1,
-    borderColor: "#dcdde1",
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
     fontSize: 16,
     fontWeight: "bold",
-    color: "#2f3640",
     marginBottom: 10,
   },
   edicaoActionsRow: {
@@ -629,18 +857,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   btnCancelar: {
-    backgroundColor: "#dfe4ea",
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 8,
   },
   btnCancelarText: {
-    color: "#2f3640",
     fontWeight: "bold",
     fontSize: 13,
   },
   btnSalvar: {
-    backgroundColor: "#00b894",
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 8,
@@ -661,13 +886,10 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "rgba(245, 246, 250, 0.95)",
     padding: 16,
     borderTopWidth: 1,
-    borderColor: "#e1e2e6",
   },
   btnIniciarTreino: {
-    backgroundColor: "#00b894",
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
@@ -687,16 +909,14 @@ const styles = StyleSheet.create({
     paddingBottom: 300,
   },
   exerciseCard: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: 14,
+    padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#e1e2e6",
     shadowColor: "#000",
     shadowOpacity: 0.04,
     shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
+    shadowRadius: 6,
     elevation: 2,
   },
   exerciseHeader: {
@@ -708,7 +928,6 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: "#00b894",
     color: "#fff",
     textAlign: "center",
     lineHeight: 24,
@@ -719,11 +938,9 @@ const styles = StyleSheet.create({
   exerciseNome: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#2f3640",
   },
   exerciseDescricao: {
     fontSize: 12,
-    color: "#747d8c",
     marginTop: 2,
   },
   badgesRow: {
@@ -737,44 +954,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     borderRadius: 8,
     alignItems: "center",
-    backgroundColor: "#f8f9fa",
     borderWidth: 1,
-    borderColor: "#e9ecef",
-  },
-  badgeSeries: {
-    backgroundColor: "#eef2ff",
-    borderColor: "#c7d2fe",
-  },
-  badgeReps: {
-    backgroundColor: "#ecfdf5",
-    borderColor: "#a7f3d0",
-  },
-  badgeCarga: {
-    backgroundColor: "#fffbeb",
-    borderColor: "#fde68a",
-  },
-  badgeDescanso: {
-    backgroundColor: "#fdf2f8",
-    borderColor: "#fbcfe8",
   },
   badgeLabel: {
     fontSize: 10,
     fontWeight: "600",
-    color: "#6b7280",
     marginBottom: 2,
   },
   badgeValue: {
     fontSize: 13,
     fontWeight: "bold",
-    color: "#1f2937",
   },
   cardEdicao: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: 14,
+    padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#dcdde1",
   },
   cardHeaderEdicao: {
     flexDirection: "row",
@@ -782,7 +977,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
     borderBottomWidth: 1,
-    borderColor: "#f1f2f6",
     paddingBottom: 8,
   },
   cardTitleContainer: {
@@ -794,7 +988,6 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: "#0984e3",
     color: "#fff",
     textAlign: "center",
     lineHeight: 22,
@@ -805,7 +998,6 @@ const styles = StyleSheet.create({
   cardNomeEdicao: {
     fontSize: 15,
     fontWeight: "bold",
-    color: "#2f3640",
   },
   removerBtn: {
     padding: 4,
@@ -825,17 +1017,14 @@ const styles = StyleSheet.create({
   colLabel: {
     fontSize: 10,
     fontWeight: "600",
-    color: "#747d8c",
     marginBottom: 4,
     textAlign: "center",
   },
   stepperContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f1f2f6",
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#dcdde1",
     overflow: "hidden",
     width: "100%",
   },
@@ -844,53 +1033,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#e4e7eb",
   },
   stepperBtnText: {
     fontSize: 12,
     fontWeight: "bold",
-    color: "#2f3640",
   },
   gridInput: {
     flex: 1,
-    backgroundColor: "#fff",
     textAlign: "center",
     paddingVertical: 4,
     paddingHorizontal: 2,
     fontSize: 13,
     fontWeight: "bold",
-    color: "#2f3640",
     minWidth: 26,
   },
   btnAddExercicio: {
-    backgroundColor: "#e8f5e9",
     borderWidth: 1,
-    borderColor: "#a7f3d0",
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: "center",
     marginVertical: 10,
   },
   btnAddExercicioText: {
-    color: "#059669",
     fontWeight: "bold",
     fontSize: 14,
   },
   catalogoContainer: {
-    backgroundColor: "#fff",
     borderRadius: 10,
     padding: 12,
     borderWidth: 1,
-    borderColor: "#dcdde1",
     marginBottom: 20,
   },
   inputBusca: {
-    backgroundColor: "#f1f2f6",
+    borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
     fontSize: 14,
-    color: "#2f3640",
     marginBottom: 10,
   },
   catalogoItem: {
@@ -898,7 +1077,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderColor: "#f1f2f6",
   },
   catalogoItemDesativado: {
     opacity: 0.5,
@@ -910,21 +1088,15 @@ const styles = StyleSheet.create({
   catalogoItemNome: {
     fontSize: 14,
     fontWeight: "bold",
-    color: "#2f3640",
-  },
-  catalogoItemNomeDesativado: {
-    color: "#747d8c",
   },
   catalogoItemDesc: {
     fontSize: 12,
-    color: "#a4b0be",
   },
   emptyListContainer: {
     padding: 30,
     alignItems: "center",
   },
   emptyListText: {
-    color: "#a4b0be",
     fontSize: 14,
     textAlign: "center",
   },

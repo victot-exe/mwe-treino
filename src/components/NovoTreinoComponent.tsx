@@ -1,3 +1,4 @@
+import { useTheme } from "@/src/context/ThemeContext";
 import { carregarExercicios, removerExercicio } from "@/src/store/exercicioSlice";
 import { adicionarTreino } from "@/src/store/treinoSlice";
 import { Exercicio, ExercicioConfigItem } from "@/src/types";
@@ -27,6 +28,7 @@ import {
 
 export default function NovoTreinoComponent() {
   const dispatch = useDispatch<AppDispatch>();
+  const { colors } = useTheme();
 
   const exercicios = useSelector((state: RootState) => state.exercicios.lista);
 
@@ -176,8 +178,8 @@ export default function NovoTreinoComponent() {
       keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
     >
       <ScrollView
-        style={styles.scrollWrapper}
-        contentContainerStyle={styles.container}
+        style={[styles.scrollWrapper, { backgroundColor: colors.background }]}
+        contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="none"
         automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
@@ -185,13 +187,20 @@ export default function NovoTreinoComponent() {
       >
         {/* Campo Nome do Treino */}
         <View style={styles.section}>
-          <Text style={styles.label}>📝 Nome do Treino</Text>
+          <Text style={[styles.label, { color: colors.text }]}>📝 Nome do Treino</Text>
           <TextInput
             placeholder="Ex: Treino A - Peito e Tríceps"
-            placeholderTextColor="#888"
+            placeholderTextColor={colors.textMuted}
             value={nomeTreino}
             onChangeText={setNomeTreino}
-            style={styles.inputNome}
+            style={[
+              styles.inputNome,
+              {
+                backgroundColor: colors.inputBg,
+                borderColor: colors.inputBorder,
+                color: colors.text,
+              },
+            ]}
             returnKeyType="done"
           />
         </View>
@@ -199,35 +208,53 @@ export default function NovoTreinoComponent() {
         {/* Seção de Seleção de Exercícios */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>💪 Adicionar Exercícios</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              💪 Adicionar Exercícios
+            </Text>
             <TouchableOpacity
               onPress={() => setMostrarCatalogo(!mostrarCatalogo)}
               style={styles.toggleCatalogoBtn}
             >
-              <Text style={styles.toggleCatalogoText}>
+              <Text style={[styles.toggleCatalogoText, { color: colors.accent }]}>
                 {mostrarCatalogo ? "Ocultar Busca ▲" : "Buscar Exercícios ▼"}
               </Text>
             </TouchableOpacity>
           </View>
 
           {mostrarCatalogo && (
-            <View style={styles.catalogoContainer}>
+            <View
+              style={[
+                styles.catalogoContainer,
+                { backgroundColor: colors.card, borderColor: colors.cardBorder },
+              ]}
+            >
               <TextInput
                 placeholder="🔍 Pesquisar exercício..."
-                placeholderTextColor="#888"
+                placeholderTextColor={colors.textMuted}
                 value={pesquisa}
                 onChangeText={setPesquisa}
-                style={styles.inputBusca}
+                style={[
+                  styles.inputBusca,
+                  {
+                    backgroundColor: colors.inputBg,
+                    borderColor: colors.inputBorder,
+                    color: colors.text,
+                  },
+                ]}
                 returnKeyType="search"
               />
 
               <View style={styles.novoExercicioRow}>
                 <Link href="/(modals)/exercicio/novoExercicio" asChild>
                   <TouchableOpacity style={styles.novoExercicioBtn}>
-                    <Text style={styles.novoExercicioText}>➕ Cadastrar Novo Exercício</Text>
+                    <Text style={[styles.novoExercicioText, { color: colors.accent }]}>
+                      ➕ Cadastrar Novo Exercício
+                    </Text>
                   </TouchableOpacity>
                 </Link>
-                <Text style={styles.hintText}>💡 Segure para excluir do banco</Text>
+                <Text style={[styles.hintText, { color: colors.textMuted }]}>
+                  💡 Segure para excluir do banco
+                </Text>
               </View>
 
               <FlatList
@@ -244,7 +271,11 @@ export default function NovoTreinoComponent() {
                       onLongPress={() => handleLongPressExcluirDoBanco(item.id, item.nome)}
                       style={[
                         styles.exercicioItem,
-                        selecionado && styles.exercicioItemSelecionado,
+                        { borderColor: colors.cardSecondary },
+                        selecionado && {
+                          backgroundColor: colors.accentLight,
+                          borderColor: colors.accent,
+                        },
                       ]}
                     >
                       <Text style={styles.checkIcon}>{selecionado ? "✅" : "➕"}</Text>
@@ -252,13 +283,20 @@ export default function NovoTreinoComponent() {
                         <Text
                           style={[
                             styles.exercicioNome,
-                            selecionado && styles.exercicioNomeSelecionado,
+                            { color: colors.text },
+                            selecionado && { color: colors.accent, fontWeight: "bold" },
                           ]}
                         >
                           {item.nome}
                         </Text>
                         {item.descricao ? (
-                          <Text style={styles.exercicioDescricao} numberOfLines={1}>
+                          <Text
+                            style={[
+                              styles.exercicioDescricao,
+                              { color: colors.textSecondary },
+                            ]}
+                            numberOfLines={1}
+                          >
                             {item.descricao}
                           </Text>
                         ) : null}
@@ -267,7 +305,9 @@ export default function NovoTreinoComponent() {
                   );
                 }}
                 ListEmptyComponent={
-                  <Text style={styles.emptyText}>Nenhum exercício encontrado</Text>
+                  <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+                    Nenhum exercício encontrado
+                  </Text>
                 }
               />
             </View>
@@ -277,13 +317,13 @@ export default function NovoTreinoComponent() {
         {/* Exercícios Selecionados e Configuração de Séries/Carga */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
               📋 Exercícios do Treino ({selecionados.length})
             </Text>
             {!mostrarCatalogo && (
               <TouchableOpacity
                 onPress={() => setMostrarCatalogo(true)}
-                style={styles.addMaisBtn}
+                style={[styles.addMaisBtn, { backgroundColor: colors.accent }]}
               >
                 <Text style={styles.addMaisText}>+ Adicionar</Text>
               </TouchableOpacity>
@@ -291,30 +331,63 @@ export default function NovoTreinoComponent() {
           </View>
 
           {selecionados.length === 0 ? (
-            <View style={styles.emptyCardsContainer}>
+            <View
+              style={[
+                styles.emptyCardsContainer,
+                { backgroundColor: colors.card, borderColor: colors.cardBorder },
+              ]}
+            >
               <Text style={styles.emptyCardsEmoji}>🏋️‍♂️</Text>
-              <Text style={styles.emptyCardsTitle}>Nenhum exercício adicionado</Text>
-              <Text style={styles.emptyCardsSub}>
+              <Text style={[styles.emptyCardsTitle, { color: colors.text }]}>
+                Nenhum exercício adicionado
+              </Text>
+              <Text style={[styles.emptyCardsSub, { color: colors.textSecondary }]}>
                 Abra a busca acima para escolher os exercícios deste treino.
               </Text>
               <TouchableOpacity
                 onPress={() => setMostrarCatalogo(true)}
-                style={styles.abrirBuscaBtn}
+                style={[styles.abrirBuscaBtn, { backgroundColor: colors.accent }]}
               >
                 <Text style={styles.abrirBuscaBtnText}>Buscar Exercícios</Text>
               </TouchableOpacity>
             </View>
           ) : (
             selecionados.map((item, index) => (
-              <View key={item.exercicio.id} style={styles.card}>
+              <View
+                key={item.exercicio.id}
+                style={[
+                  styles.card,
+                  { backgroundColor: colors.card, borderColor: colors.cardBorder },
+                ]}
+              >
                 {/* Cabeçalho do Card */}
-                <View style={styles.cardHeader}>
+                <View
+                  style={[
+                    styles.cardHeader,
+                    { borderColor: colors.cardSecondary },
+                  ]}
+                >
                   <View style={styles.cardTitleContainer}>
-                    <Text style={styles.cardIndex}>{index + 1}</Text>
+                    <Text
+                      style={[
+                        styles.cardIndex,
+                        { backgroundColor: colors.accent },
+                      ]}
+                    >
+                      {index + 1}
+                    </Text>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.cardNome}>{item.exercicio.nome}</Text>
+                      <Text style={[styles.cardNome, { color: colors.text }]}>
+                        {item.exercicio.nome}
+                      </Text>
                       {item.exercicio.descricao ? (
-                        <Text style={styles.cardDescricao} numberOfLines={1}>
+                        <Text
+                          style={[
+                            styles.cardDescricao,
+                            { color: colors.textSecondary },
+                          ]}
+                          numberOfLines={1}
+                        >
                           {item.exercicio.descricao}
                         </Text>
                       ) : null}
@@ -328,20 +401,38 @@ export default function NovoTreinoComponent() {
                   </TouchableOpacity>
                 </View>
 
-                {/* Grid de Inputs: Séries, Repetições, Carga, Descanso com Steppers */}
+                {/* Grid de Inputs com Steppers */}
                 <View style={styles.gridInputs}>
                   {/* Séries */}
                   <View style={styles.colInput}>
-                    <Text style={styles.colLabel}>Séries</Text>
-                    <View style={styles.stepperContainer}>
+                    <Text style={[styles.colLabel, { color: colors.textSecondary }]}>
+                      Séries
+                    </Text>
+                    <View
+                      style={[
+                        styles.stepperContainer,
+                        {
+                          backgroundColor: colors.stepperBg,
+                          borderColor: colors.inputBorder,
+                        },
+                      ]}
+                    >
                       <TouchableOpacity
                         onPress={() => alterarValorRapido(item.exercicio.id, "series", -1, 1)}
-                        style={styles.stepperBtn}
+                        style={[
+                          styles.stepperBtn,
+                          { backgroundColor: colors.stepperBtn },
+                        ]}
                       >
-                        <Text style={styles.stepperBtnText}>-</Text>
+                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>
+                          -
+                        </Text>
                       </TouchableOpacity>
                       <TextInput
-                        style={styles.gridInput}
+                        style={[
+                          styles.gridInput,
+                          { backgroundColor: colors.inputBg, color: colors.text },
+                        ]}
                         keyboardType="numeric"
                         selectTextOnFocus={true}
                         value={item.series ? String(item.series) : ""}
@@ -349,29 +440,52 @@ export default function NovoTreinoComponent() {
                           atualizarCampo(item.exercicio.id, "series", val)
                         }
                         placeholder="4"
-                        placeholderTextColor="#999"
+                        placeholderTextColor={colors.textMuted}
                       />
                       <TouchableOpacity
                         onPress={() => alterarValorRapido(item.exercicio.id, "series", 1, 1)}
-                        style={styles.stepperBtn}
+                        style={[
+                          styles.stepperBtn,
+                          { backgroundColor: colors.stepperBtn },
+                        ]}
                       >
-                        <Text style={styles.stepperBtnText}>+</Text>
+                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>
+                          +
+                        </Text>
                       </TouchableOpacity>
                     </View>
                   </View>
 
                   {/* Repetições */}
                   <View style={styles.colInput}>
-                    <Text style={styles.colLabel}>Reps</Text>
-                    <View style={styles.stepperContainer}>
+                    <Text style={[styles.colLabel, { color: colors.textSecondary }]}>
+                      Reps
+                    </Text>
+                    <View
+                      style={[
+                        styles.stepperContainer,
+                        {
+                          backgroundColor: colors.stepperBg,
+                          borderColor: colors.inputBorder,
+                        },
+                      ]}
+                    >
                       <TouchableOpacity
                         onPress={() => alterarValorRapido(item.exercicio.id, "repeticoes", -1, 1)}
-                        style={styles.stepperBtn}
+                        style={[
+                          styles.stepperBtn,
+                          { backgroundColor: colors.stepperBtn },
+                        ]}
                       >
-                        <Text style={styles.stepperBtnText}>-</Text>
+                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>
+                          -
+                        </Text>
                       </TouchableOpacity>
                       <TextInput
-                        style={styles.gridInput}
+                        style={[
+                          styles.gridInput,
+                          { backgroundColor: colors.inputBg, color: colors.text },
+                        ]}
                         keyboardType="numeric"
                         selectTextOnFocus={true}
                         value={item.repeticoes ? String(item.repeticoes) : ""}
@@ -379,29 +493,52 @@ export default function NovoTreinoComponent() {
                           atualizarCampo(item.exercicio.id, "repeticoes", val)
                         }
                         placeholder="10"
-                        placeholderTextColor="#999"
+                        placeholderTextColor={colors.textMuted}
                       />
                       <TouchableOpacity
                         onPress={() => alterarValorRapido(item.exercicio.id, "repeticoes", 1, 1)}
-                        style={styles.stepperBtn}
+                        style={[
+                          styles.stepperBtn,
+                          { backgroundColor: colors.stepperBtn },
+                        ]}
                       >
-                        <Text style={styles.stepperBtnText}>+</Text>
+                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>
+                          +
+                        </Text>
                       </TouchableOpacity>
                     </View>
                   </View>
 
                   {/* Carga (kg) */}
                   <View style={styles.colInput}>
-                    <Text style={styles.colLabel}>Carga (kg)</Text>
-                    <View style={styles.stepperContainer}>
+                    <Text style={[styles.colLabel, { color: colors.textSecondary }]}>
+                      Carga (kg)
+                    </Text>
+                    <View
+                      style={[
+                        styles.stepperContainer,
+                        {
+                          backgroundColor: colors.stepperBg,
+                          borderColor: colors.inputBorder,
+                        },
+                      ]}
+                    >
                       <TouchableOpacity
                         onPress={() => alterarValorRapido(item.exercicio.id, "carga", -5, 0)}
-                        style={styles.stepperBtn}
+                        style={[
+                          styles.stepperBtn,
+                          { backgroundColor: colors.stepperBtn },
+                        ]}
                       >
-                        <Text style={styles.stepperBtnText}>-</Text>
+                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>
+                          -
+                        </Text>
                       </TouchableOpacity>
                       <TextInput
-                        style={styles.gridInput}
+                        style={[
+                          styles.gridInput,
+                          { backgroundColor: colors.inputBg, color: colors.text },
+                        ]}
                         keyboardType="numeric"
                         selectTextOnFocus={true}
                         value={item.carga !== undefined ? String(item.carga) : "0"}
@@ -409,29 +546,52 @@ export default function NovoTreinoComponent() {
                           atualizarCampo(item.exercicio.id, "carga", val)
                         }
                         placeholder="0"
-                        placeholderTextColor="#999"
+                        placeholderTextColor={colors.textMuted}
                       />
                       <TouchableOpacity
                         onPress={() => alterarValorRapido(item.exercicio.id, "carga", 5, 0)}
-                        style={styles.stepperBtn}
+                        style={[
+                          styles.stepperBtn,
+                          { backgroundColor: colors.stepperBtn },
+                        ]}
                       >
-                        <Text style={styles.stepperBtnText}>+</Text>
+                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>
+                          +
+                        </Text>
                       </TouchableOpacity>
                     </View>
                   </View>
 
                   {/* Descanso (s) */}
                   <View style={styles.colInput}>
-                    <Text style={styles.colLabel}>Descanso (s)</Text>
-                    <View style={styles.stepperContainer}>
+                    <Text style={[styles.colLabel, { color: colors.textSecondary }]}>
+                      Descanso (s)
+                    </Text>
+                    <View
+                      style={[
+                        styles.stepperContainer,
+                        {
+                          backgroundColor: colors.stepperBg,
+                          borderColor: colors.inputBorder,
+                        },
+                      ]}
+                    >
                       <TouchableOpacity
                         onPress={() => alterarValorRapido(item.exercicio.id, "descanso", -15, 0)}
-                        style={styles.stepperBtn}
+                        style={[
+                          styles.stepperBtn,
+                          { backgroundColor: colors.stepperBtn },
+                        ]}
                       >
-                        <Text style={styles.stepperBtnText}>-</Text>
+                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>
+                          -
+                        </Text>
                       </TouchableOpacity>
                       <TextInput
-                        style={styles.gridInput}
+                        style={[
+                          styles.gridInput,
+                          { backgroundColor: colors.inputBg, color: colors.text },
+                        ]}
                         keyboardType="numeric"
                         selectTextOnFocus={true}
                         value={item.descanso ? String(item.descanso) : ""}
@@ -439,13 +599,18 @@ export default function NovoTreinoComponent() {
                           atualizarCampo(item.exercicio.id, "descanso", val)
                         }
                         placeholder="60"
-                        placeholderTextColor="#999"
+                        placeholderTextColor={colors.textMuted}
                       />
                       <TouchableOpacity
                         onPress={() => alterarValorRapido(item.exercicio.id, "descanso", 15, 0)}
-                        style={styles.stepperBtn}
+                        style={[
+                          styles.stepperBtn,
+                          { backgroundColor: colors.stepperBtn },
+                        ]}
                       >
-                        <Text style={styles.stepperBtnText}>+</Text>
+                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>
+                          +
+                        </Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -459,7 +624,11 @@ export default function NovoTreinoComponent() {
         <TouchableOpacity
           onPress={handleSalvar}
           disabled={salvando}
-          style={[styles.btnSalvar, salvando && styles.btnSalvarDisabled]}
+          style={[
+            styles.btnSalvar,
+            { backgroundColor: colors.primary },
+            salvando && styles.btnSalvarDisabled,
+          ]}
         >
           {salvando ? (
             <ActivityIndicator color="#fff" />
@@ -483,7 +652,6 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 350,
     flexGrow: 1,
-    backgroundColor: "#f5f6fa",
   },
   section: {
     marginBottom: 20,
@@ -491,18 +659,14 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#2f3640",
     marginBottom: 6,
   },
   inputNome: {
-    backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: "#dcdde1",
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-    color: "#2f3640",
   },
   sectionHeaderRow: {
     flexDirection: "row",
@@ -513,19 +677,16 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#2f3640",
   },
   toggleCatalogoBtn: {
     paddingVertical: 4,
     paddingHorizontal: 8,
   },
   toggleCatalogoText: {
-    color: "#0984e3",
     fontWeight: "600",
     fontSize: 13,
   },
   addMaisBtn: {
-    backgroundColor: "#00b894",
     paddingVertical: 5,
     paddingHorizontal: 12,
     borderRadius: 6,
@@ -536,20 +697,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   catalogoContainer: {
-    backgroundColor: "#fff",
     borderRadius: 10,
     padding: 12,
     borderWidth: 1,
-    borderColor: "#dcdde1",
     marginBottom: 10,
   },
   inputBusca: {
-    backgroundColor: "#f1f2f6",
+    borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
     fontSize: 14,
-    color: "#2f3640",
     marginBottom: 10,
   },
   novoExercicioRow: {
@@ -562,13 +720,11 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   novoExercicioText: {
-    color: "#0984e3",
     fontWeight: "bold",
     fontSize: 13,
   },
   hintText: {
     fontSize: 11,
-    color: "#a4b0be",
   },
   exercicioItem: {
     flexDirection: "row",
@@ -576,11 +732,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 8,
     borderBottomWidth: 1,
-    borderColor: "#f1f2f6",
     borderRadius: 6,
-  },
-  exercicioItemSelecionado: {
-    backgroundColor: "#e8f5e9",
   },
   checkIcon: {
     fontSize: 16,
@@ -589,28 +741,19 @@ const styles = StyleSheet.create({
   exercicioNome: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#2f3640",
-  },
-  exercicioNomeSelecionado: {
-    color: "#2e7d32",
-    fontWeight: "bold",
   },
   exercicioDescricao: {
     fontSize: 12,
-    color: "#747d8c",
   },
   emptyText: {
     textAlign: "center",
-    color: "#a4b0be",
     paddingVertical: 12,
   },
   emptyCardsContainer: {
-    backgroundColor: "#fff",
     borderRadius: 12,
     padding: 24,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#e1e2e6",
     borderStyle: "dashed",
   },
   emptyCardsEmoji: {
@@ -620,17 +763,14 @@ const styles = StyleSheet.create({
   emptyCardsTitle: {
     fontSize: 15,
     fontWeight: "bold",
-    color: "#2f3640",
     marginBottom: 4,
   },
   emptyCardsSub: {
     fontSize: 13,
-    color: "#747d8c",
     textAlign: "center",
     marginBottom: 14,
   },
   abrirBuscaBtn: {
-    backgroundColor: "#0984e3",
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 8,
@@ -641,12 +781,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   card: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 14,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#e1e2e6",
     shadowColor: "#000",
     shadowOpacity: 0.04,
     shadowOffset: { width: 0, height: 2 },
@@ -659,7 +797,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
     borderBottomWidth: 1,
-    borderColor: "#f1f2f6",
     paddingBottom: 8,
   },
   cardTitleContainer: {
@@ -671,7 +808,6 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: "#0984e3",
     color: "#fff",
     textAlign: "center",
     lineHeight: 22,
@@ -682,11 +818,9 @@ const styles = StyleSheet.create({
   cardNome: {
     fontSize: 15,
     fontWeight: "bold",
-    color: "#2f3640",
   },
   cardDescricao: {
     fontSize: 12,
-    color: "#747d8c",
   },
   removerBtn: {
     padding: 6,
@@ -706,17 +840,14 @@ const styles = StyleSheet.create({
   colLabel: {
     fontSize: 10,
     fontWeight: "600",
-    color: "#747d8c",
     marginBottom: 4,
     textAlign: "center",
   },
   stepperContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f1f2f6",
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#dcdde1",
     overflow: "hidden",
     width: "100%",
   },
@@ -725,26 +856,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#e4e7eb",
   },
   stepperBtnText: {
     fontSize: 12,
     fontWeight: "bold",
-    color: "#2f3640",
   },
   gridInput: {
     flex: 1,
-    backgroundColor: "#fff",
     textAlign: "center",
     paddingVertical: 4,
     paddingHorizontal: 2,
     fontSize: 13,
     fontWeight: "bold",
-    color: "#2f3640",
     minWidth: 26,
   },
   btnSalvar: {
-    backgroundColor: "#00b894",
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: "center",

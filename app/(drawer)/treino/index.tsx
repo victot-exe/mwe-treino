@@ -1,7 +1,8 @@
+import { useTheme } from "@/src/context/ThemeContext";
 import { AppDispatch, RootState } from "@/src/store";
 import { carregarTreinos, removerTreino } from "@/src/store/treinoSlice";
 import { useFocusEffect } from "@react-navigation/native";
-import { Link, router } from "expo-router";
+import { router } from "expo-router";
 import { useCallback } from "react";
 import {
   ActivityIndicator,
@@ -16,6 +17,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 export default function TreinosScreen() {
   const dispatch = useDispatch<AppDispatch>();
+  const { colors } = useTheme();
 
   const treinos = useSelector((state: RootState) => state.treinos.lista);
   const loading = useSelector((state: RootState) => state.treinos.loading);
@@ -45,58 +47,118 @@ export default function TreinosScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {loading && treinos.length === 0 ? (
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#00b894" />
-          <Text style={styles.loadingText}>Carregando treinos...</Text>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Carregando treinos...
+          </Text>
         </View>
       ) : (
         <FlatList
           data={treinos}
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={styles.listContent}
+          ListHeaderComponent={
+            <View style={styles.headerSection}>
+              {/* Card de Criar Novo Treino no Padrão da Tela Inicial */}
+              <TouchableOpacity
+                onPress={() => router.push("/(modals)/treinos/novoTreino")}
+                activeOpacity={0.8}
+                style={[
+                  styles.cardNovoTreino,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.cardBorder,
+                  },
+                ]}
+              >
+                <View style={styles.novoTreinoRow}>
+                  <View
+                    style={[
+                      styles.novoTreinoIconContainer,
+                      { backgroundColor: colors.primary },
+                    ]}
+                  >
+                    <Text style={styles.novoTreinoIcon}>➕</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.novoTreinoTitle, { color: colors.text }]}>
+                      Criar Novo Treino
+                    </Text>
+                    <Text
+                      style={[
+                        styles.novoTreinoSubtitle,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
+                      Monte uma nova rotina com séries, reps e cargas
+                    </Text>
+                  </View>
+                  <Text style={[styles.setaNovo, { color: colors.primary }]}>›</Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Título da Seção */}
+              {treinos.length > 0 && (
+                <View style={styles.sectionTitleRow}>
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                    💪 Meus Treinos ({treinos.length})
+                  </Text>
+                  <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
+                    Segure para excluir
+                  </Text>
+                </View>
+              )}
+            </View>
+          }
           renderItem={({ item }) => (
             <TouchableOpacity
               onPress={() => router.push(`/(modals)/treinos/${item.id}`)}
               onLongPress={() => handleLongPress(item.id, item.nome)}
               delayLongPress={400}
-              style={styles.treinoCard}
+              style={[
+                styles.treinoCard,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.cardBorder,
+                },
+              ]}
               activeOpacity={0.7}
             >
-              <View style={styles.treinoIconContainer}>
+              <View
+                style={[
+                  styles.treinoIconContainer,
+                  { backgroundColor: colors.accentLight },
+                ]}
+              >
                 <Text style={styles.treinoIcon}>💪</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.treinoNome}>{item.nome}</Text>
-                <Text style={styles.treinoSub}>
+                <Text style={[styles.treinoNome, { color: colors.text }]}>{item.nome}</Text>
+                <Text style={[styles.treinoSub, { color: colors.textSecondary }]}>
                   {item.exercicios?.length
-                    ? `${item.exercicios.length} exercício(s)`
+                    ? `${item.exercicios.length} exercício(s) configurado(s)`
                     : "Toque para ver os detalhes"}
                 </Text>
               </View>
-              <Text style={styles.seta}>›</Text>
+              <Text style={[styles.seta, { color: colors.textMuted }]}>›</Text>
             </TouchableOpacity>
           )}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyEmoji}>🏋️</Text>
-              <Text style={styles.emptyTitle}>Nenhum treino criado ainda</Text>
-              <Text style={styles.emptySub}>
-                Crie o seu primeiro treino clicando no botão abaixo!
+              <Text style={[styles.emptyTitle, { color: colors.text }]}>
+                Nenhum treino criado ainda
+              </Text>
+              <Text style={[styles.emptySub, { color: colors.textSecondary }]}>
+                Toque no card acima para montar a sua primeira ficha de treino!
               </Text>
             </View>
           }
         />
       )}
-
-      <View style={styles.bottomBar}>
-        <Link href="/(modals)/treinos/novoTreino" asChild>
-          <TouchableOpacity style={styles.btnNovoTreino}>
-            <Text style={styles.btnNovoTreinoText}>➕ Criar Novo Treino</Text>
-          </TouchableOpacity>
-        </Link>
-      </View>
     </View>
   );
 }
@@ -104,7 +166,6 @@ export default function TreinosScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f6fa",
   },
   centerContainer: {
     flex: 1,
@@ -115,35 +176,90 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: "#747d8c",
   },
   listContent: {
     padding: 16,
-    paddingBottom: 90,
+    paddingBottom: 40,
+  },
+  headerSection: {
+    marginBottom: 16,
+  },
+  cardNovoTreino: {
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 2,
+    marginBottom: 16,
+  },
+  novoTreinoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  novoTreinoIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+  novoTreinoIcon: {
+    fontSize: 18,
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  novoTreinoTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 2,
+  },
+  novoTreinoSubtitle: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  setaNovo: {
+    fontSize: 26,
+    fontWeight: "bold",
+    marginLeft: 8,
+  },
+  sectionTitleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: "bold",
+  },
+  sectionHint: {
+    fontSize: 11,
   },
   treinoCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
     padding: 16,
-    borderRadius: 12,
-    marginBottom: 10,
+    borderRadius: 14,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#e1e2e6",
     shadowColor: "#000",
-    shadowOpacity: 0.03,
+    shadowOpacity: 0.04,
     shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
+    shadowRadius: 6,
     elevation: 2,
   },
   treinoIconContainer: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#e8f5e9",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
+    marginRight: 14,
   },
   treinoIcon: {
     fontSize: 20,
@@ -151,63 +267,32 @@ const styles = StyleSheet.create({
   treinoNome: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#2f3640",
+    marginBottom: 2,
   },
   treinoSub: {
     fontSize: 12,
-    color: "#747d8c",
-    marginTop: 2,
   },
   seta: {
     fontSize: 24,
-    color: "#a4b0be",
     fontWeight: "bold",
   },
   emptyContainer: {
     alignItems: "center",
-    padding: 40,
-    marginTop: 40,
+    padding: 30,
+    marginTop: 20,
   },
   emptyEmoji: {
-    fontSize: 48,
-    marginBottom: 12,
+    fontSize: 44,
+    marginBottom: 10,
   },
   emptyTitle: {
     fontSize: 17,
     fontWeight: "bold",
-    color: "#2f3640",
-    marginBottom: 6,
+    marginBottom: 4,
   },
   emptySub: {
     fontSize: 13,
-    color: "#747d8c",
     textAlign: "center",
-  },
-  bottomBar: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 16,
-    backgroundColor: "rgba(245, 246, 250, 0.95)",
-    borderTopWidth: 1,
-    borderColor: "#e1e2e6",
-  },
-  btnNovoTreino: {
-    backgroundColor: "#00b894",
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: "center",
-    shadowColor: "#00b894",
-    shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  btnNovoTreinoText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
+    lineHeight: 18,
   },
 });
-

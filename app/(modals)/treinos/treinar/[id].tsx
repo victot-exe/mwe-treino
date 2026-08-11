@@ -1,3 +1,4 @@
+import { useTheme } from "@/src/context/ThemeContext";
 import { updateExercicioTreino } from "@/src/database/exercicioTreinoRepository";
 import { getTreinoById } from "@/src/database/treinoRepository";
 import {
@@ -15,14 +16,14 @@ import {
   AppStateStatus,
   Modal,
   Platform,
-  SafeAreaView,
   ScrollView,
-  StatusBar as RNStatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
 
 interface ProgressoExercicio {
   serieAtual: number;
@@ -32,6 +33,7 @@ interface ProgressoExercicio {
 }
 
 export default function TreinarScreen() {
+  const { colors } = useTheme();
   const params = useLocalSearchParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
 
@@ -54,7 +56,7 @@ export default function TreinarScreen() {
   const fimDescansoTimestampRef = useRef<number | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // ID da notificação agendada no sistema operacional
+  // ID da notificação agendada
   const notificationIdRef = useRef<string | null>(null);
 
   // Menu Lateral Retrátil (Checklist)
@@ -68,7 +70,6 @@ export default function TreinarScreen() {
     if (!id) return;
     setLoading(true);
 
-    // Solicita permissões para notificação local
     await requestNotificationPermissions();
 
     const treinoDb = await getTreinoById(Number(id));
@@ -98,11 +99,9 @@ export default function TreinarScreen() {
 
   // Função central que atualiza os tempos com precisão matemática via Timestamp
   const sincronizarCronometros = useCallback(() => {
-    // 1. Atualiza tempo total do treino
     const decorrido = Math.floor((Date.now() - inicioTreinoTimestampRef.current) / 1000);
     setTempoDecorrido(Math.max(0, decorrido));
 
-    // 2. Atualiza tempo de descanso se ativo
     if (fimDescansoTimestampRef.current !== null) {
       const restanteMs = fimDescansoTimestampRef.current - Date.now();
       const restanteSeg = Math.ceil(restanteMs / 1000);
@@ -118,7 +117,7 @@ export default function TreinarScreen() {
     }
   }, []);
 
-  // Loop de intervalo contínuo (roda a cada segundo enquanto o app está aberto)
+  // Loop de intervalo contínuo
   useEffect(() => {
     if (loading || !treino) return;
 
@@ -131,7 +130,7 @@ export default function TreinarScreen() {
     };
   }, [loading, treino, sincronizarCronometros]);
 
-  // Sincroniza IMEDIATAMENTE quando o usuário volta do segundo plano para o app
+  // Sincroniza IMEDIATAMENTE ao voltar do segundo plano
   useEffect(() => {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (nextAppState === "active") {
@@ -159,9 +158,8 @@ export default function TreinarScreen() {
     return `${min.toString().padStart(2, "0")}:${seg.toString().padStart(2, "0")}`;
   };
 
-  // Iniciar Cronômetro de Descanso e Agendar Notificação no Sistema Operacional
+  // Iniciar Cronômetro de Descanso
   const iniciarDescanso = async (segundos: number, nomeExercicio: string) => {
-    // Cancela notificação anterior se houver
     if (notificationIdRef.current) {
       await cancelarNotificacaoDescanso(notificationIdRef.current);
     }
@@ -171,7 +169,6 @@ export default function TreinarScreen() {
     setTempoRestanteDescanso(tempoValido);
     setDescansoAtivo(true);
 
-    // Agenda notificação no relógio do Android/iOS
     const notifId = await agendarNotificacaoDescanso(tempoValido, nomeExercicio);
     notificationIdRef.current = notifId;
   };
@@ -194,7 +191,6 @@ export default function TreinarScreen() {
       const novoTempo = tempoRestanteDescanso + segundosAdicionais;
       setTempoRestanteDescanso(novoTempo);
 
-      // Reagenda a notificação para o novo horário
       if (notificationIdRef.current) {
         await cancelarNotificacaoDescanso(notificationIdRef.current);
       }
@@ -216,7 +212,6 @@ export default function TreinarScreen() {
     const nomeEx = exercicioAtual.exercicio?.nome || "Exercício";
 
     if (estado.serieAtual < estado.totalSeries) {
-      // Avança para a próxima série e inicia descanso agendando a notificação
       setProgresso((prev) => ({
         ...prev,
         [exercicioAtual.exercicio_id]: {
@@ -226,7 +221,6 @@ export default function TreinarScreen() {
       }));
       iniciarDescanso(tempoDescanso, nomeEx);
     } else {
-      // Última série concluída -> Marca exercício como finalizado!
       setProgresso((prev) => {
         const novoProgresso = {
           ...prev,
@@ -236,13 +230,11 @@ export default function TreinarScreen() {
           },
         };
 
-        // Checa se TODOS os exercícios foram concluídos
         const todosConcluidos = Object.values(novoProgresso).every((p) => p.concluido);
         if (todosConcluidos) {
           pularDescanso();
           setTreinoFinalizadoModal(true);
         } else {
-          // Inicia descanso e busca próximo exercício não concluído
           iniciarDescanso(tempoDescanso, nomeEx);
           const proximoIndex = treino?.exercicios?.findIndex(
             (item) => !novoProgresso[item.exercicio_id]?.concluido
@@ -296,7 +288,6 @@ export default function TreinarScreen() {
       },
     }));
 
-    // Salva a nova carga no banco SQLite
     if (exAtual.id) {
       await updateExercicioTreino(exAtual.id, { carga: novaCarga });
     }
@@ -323,9 +314,11 @@ export default function TreinarScreen() {
 
   if (loading || !treino || !treino.exercicios || treino.exercicios.length === 0) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#00b894" />
-        <Text style={styles.loadingText}>Preparando seu treino...</Text>
+      <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+          Preparando seu treino...
+        </Text>
       </View>
     );
   }
@@ -342,36 +335,46 @@ export default function TreinarScreen() {
   const concluidosCount = Object.values(progresso).filter((p) => p.concluido).length;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.headerBg }]}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         {/* CABEÇALHO COM BOTÃO DE LISTA NA ESQUERDA */}
-        <View style={styles.header}>
-          {/* Botão de Lista / Checklist na Esquerda */}
+        <View
+          style={[
+            styles.header,
+            { backgroundColor: colors.headerBg, borderColor: colors.cardBorder },
+          ]}
+        >
+          {/* Botão de Lista na Esquerda */}
           <TouchableOpacity
             onPress={() => setMenuLateralAberto(true)}
-            style={styles.btnMenu}
+            style={[
+              styles.btnMenu,
+              { backgroundColor: colors.card, borderColor: colors.cardBorder },
+            ]}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             activeOpacity={0.7}
           >
-            <Text style={styles.btnMenuIcon}>⋮</Text>
-            <Text style={styles.btnMenuText}>Lista</Text>
+            <Text style={[styles.btnMenuIcon, { color: colors.primary }]}>⋮</Text>
+            <Text style={[styles.btnMenuText, { color: colors.text }]}>Lista</Text>
           </TouchableOpacity>
 
           {/* Centro: Nome do Treino e Cronômetro */}
           <View style={styles.headerCenter}>
-            <Text style={styles.headerTreinoNome} numberOfLines={1}>
+            <Text style={[styles.headerTreinoNome, { color: colors.headerText }]} numberOfLines={1}>
               {treino.nome}
             </Text>
             <View style={styles.headerStatusRow}>
-              <Text style={styles.headerTimer}>⏱️ {formatarTempo(tempoDecorrido)}</Text>
-              <Text style={styles.headerDot}>•</Text>
-              <Text style={styles.headerProgresso}>
+              <Text style={[styles.headerTimer, { color: colors.primary }]}>
+                ⏱️ {formatarTempo(tempoDecorrido)}
+              </Text>
+              <Text style={[styles.headerDot, { color: colors.textMuted }]}>•</Text>
+              <Text style={[styles.headerProgresso, { color: colors.textSecondary }]}>
                 {concluidosCount}/{totalExercicios} feitos
               </Text>
             </View>
           </View>
 
-          {/* Botão de Fechar / Sair na Direita */}
+          {/* Botão de Fechar na Direita */}
           <TouchableOpacity
             onPress={() => {
               Alert.alert("Sair do Treino", "Deseja voltar para a tela anterior?", [
@@ -385,35 +388,60 @@ export default function TreinarScreen() {
                 },
               ]);
             }}
-            style={styles.btnVoltar}
+            style={[
+              styles.btnVoltar,
+              { backgroundColor: colors.card, borderColor: colors.cardBorder },
+            ]}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             activeOpacity={0.7}
           >
-            <Text style={styles.btnVoltarText}>✕</Text>
+            <Text style={[styles.btnVoltarText, { color: colors.text }]}>✕</Text>
           </TouchableOpacity>
         </View>
 
         {/* CORPO PRINCIPAL: EXERCÍCIO EM FOCO */}
         <ScrollView contentContainerStyle={styles.mainContent}>
           {/* Card do Exercício Atual */}
-          <View style={styles.cardPrincipal}>
-            <View style={styles.badgeExercicioIndex}>
-              <Text style={styles.badgeExercicioIndexText}>
+          <View
+            style={[
+              styles.cardPrincipal,
+              { backgroundColor: colors.card, borderColor: colors.cardBorder },
+            ]}
+          >
+            <View
+              style={[
+                styles.badgeExercicioIndex,
+                { backgroundColor: colors.accentLight },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.badgeExercicioIndexText,
+                  { color: colors.accent },
+                ]}
+              >
                 Exercício {exercicioAtivoIndex + 1} de {totalExercicios}
               </Text>
             </View>
 
-            <Text style={styles.nomeExercicio}>{exercicioAtual.exercicio?.nome}</Text>
+            <Text style={[styles.nomeExercicio, { color: colors.text }]}>
+              {exercicioAtual.exercicio?.nome}
+            </Text>
             {exercicioAtual.exercicio?.descricao ? (
-              <Text style={styles.descExercicio}>
+              <Text style={[styles.descExercicio, { color: colors.textSecondary }]}>
                 {exercicioAtual.exercicio.descricao}
               </Text>
             ) : null}
 
             {/* Marcador Visual de Séries */}
-            <View style={styles.seriesIndicatorContainer}>
-              <Text style={styles.seriesLabel}>
-                Série <Text style={styles.seriesDestaque}>{estadoAtual.serieAtual}</Text> /{" "}
+            <View
+              style={[
+                styles.seriesIndicatorContainer,
+                { backgroundColor: colors.cardSecondary, borderColor: colors.cardBorder },
+              ]}
+            >
+              <Text style={[styles.seriesLabel, { color: colors.textSecondary }]}>
+                Série <Text style={[styles.seriesDestaque, { color: colors.accent }]}>{estadoAtual.serieAtual}</Text> /{" "}
                 {estadoAtual.totalSeries}
               </Text>
               <View style={styles.seriesDotsRow}>
@@ -425,13 +453,19 @@ export default function TreinarScreen() {
                       key={idx}
                       style={[
                         styles.serieDot,
-                        feito && styles.serieDotFeito,
-                        atual && styles.serieDotAtual,
+                        { backgroundColor: colors.inputBg },
+                        feito && { backgroundColor: colors.primary },
+                        atual && {
+                          backgroundColor: colors.accent,
+                          borderWidth: 2,
+                          borderColor: colors.accent,
+                        },
                       ]}
                     >
                       <Text
                         style={[
                           styles.serieDotText,
+                          { color: colors.textSecondary },
                           (feito || atual) && styles.serieDotTextActive,
                         ]}
                       >
@@ -446,27 +480,54 @@ export default function TreinarScreen() {
             {/* Parâmetros do Exercício (Reps e Carga com Stepper) */}
             <View style={styles.parametrosGrid}>
               {/* Repetições Alvo */}
-              <View style={styles.paramBox}>
-                <Text style={styles.paramLabel}>Repetições Alvo</Text>
-                <Text style={styles.paramValor}>{exercicioAtual.repeticoes} reps</Text>
+              <View
+                style={[
+                  styles.paramBox,
+                  { backgroundColor: colors.cardSecondary, borderColor: colors.cardBorder },
+                ]}
+              >
+                <Text style={[styles.paramLabel, { color: colors.textSecondary }]}>
+                  Repetições Alvo
+                </Text>
+                <Text style={[styles.paramValor, { color: colors.text }]}>
+                  {exercicioAtual.repeticoes} reps
+                </Text>
               </View>
 
               {/* Carga Ajustável */}
-              <View style={styles.paramBox}>
-                <Text style={styles.paramLabel}>Carga Atual</Text>
-                <View style={styles.stepperCarga}>
+              <View
+                style={[
+                  styles.paramBox,
+                  { backgroundColor: colors.cardSecondary, borderColor: colors.cardBorder },
+                ]}
+              >
+                <Text style={[styles.paramLabel, { color: colors.textSecondary }]}>
+                  Carga Atual
+                </Text>
+                <View
+                  style={[
+                    styles.stepperCarga,
+                    { backgroundColor: colors.stepperBg, borderColor: colors.inputBorder },
+                  ]}
+                >
                   <TouchableOpacity
                     onPress={() => alterarCargaRapida(-5)}
-                    style={styles.stepperCargaBtn}
+                    style={[styles.stepperCargaBtn, { backgroundColor: colors.stepperBtn }]}
                   >
-                    <Text style={styles.stepperCargaBtnText}>-</Text>
+                    <Text style={[styles.stepperCargaBtnText, { color: colors.text }]}>
+                      -
+                    </Text>
                   </TouchableOpacity>
-                  <Text style={styles.stepperCargaText}>{estadoAtual.carga} kg</Text>
+                  <Text style={[styles.stepperCargaText, { color: colors.text }]}>
+                    {estadoAtual.carga} kg
+                  </Text>
                   <TouchableOpacity
                     onPress={() => alterarCargaRapida(5)}
-                    style={styles.stepperCargaBtn}
+                    style={[styles.stepperCargaBtn, { backgroundColor: colors.stepperBtn }]}
                   >
-                    <Text style={styles.stepperCargaBtnText}>+</Text>
+                    <Text style={[styles.stepperCargaBtnText, { color: colors.text }]}>
+                      +
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -475,32 +536,49 @@ export default function TreinarScreen() {
 
           {/* PAINEL DE CRONÔMETRO DE DESCANSO */}
           {descansoAtivo ? (
-            <View style={styles.descansoCard}>
-              <Text style={styles.descansoTitulo}>⏱️ DESCANSO EM ANDAMENTO</Text>
-              <Text style={styles.descansoCronometro}>
+            <View
+              style={[
+                styles.descansoCard,
+                { backgroundColor: colors.cardSecondary },
+              ]}
+            >
+              <Text style={[styles.descansoTitulo, { color: colors.accent }]}>
+                ⏱️ DESCANSO EM ANDAMENTO
+              </Text>
+              <Text style={[styles.descansoCronometro, { color: colors.text }]}>
                 {formatarTempo(tempoRestanteDescanso)}
               </Text>
-              <Text style={styles.descansoSub}>
+              <Text style={[styles.descansoSub, { color: colors.textSecondary }]}>
                 O alarme do celular tocará quando o tempo acabar!
               </Text>
 
               <View style={styles.descansoBotoesRow}>
                 <TouchableOpacity
                   onPress={() => adicionarTempoDescanso(15)}
-                  style={styles.btnMaisTempo}
+                  style={[styles.btnMaisTempo, { backgroundColor: colors.accentLight }]}
                 >
-                  <Text style={styles.btnMaisTempoText}>+15s</Text>
+                  <Text style={[styles.btnMaisTempoText, { color: colors.accent }]}>
+                    +15s
+                  </Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={pularDescanso} style={styles.btnPularDescanso}>
+                <TouchableOpacity
+                  onPress={pularDescanso}
+                  style={[styles.btnPularDescanso, { backgroundColor: colors.primary }]}
+                >
                   <Text style={styles.btnPularDescansoText}>⏩ Pular Descanso</Text>
                 </TouchableOpacity>
               </View>
             </View>
           ) : (
-            <View style={styles.descansoInativoCard}>
-              <Text style={styles.descansoInativoText}>
+            <View
+              style={[
+                styles.descansoInativoCard,
+                { backgroundColor: colors.card, borderColor: colors.cardBorder },
+              ]}
+            >
+              <Text style={[styles.descansoInativoText, { color: colors.textSecondary }]}>
                 Descanso configurado:{" "}
-                <Text style={{ fontWeight: "bold" }}>
+                <Text style={{ fontWeight: "bold", color: colors.text }}>
                   {exercicioAtual.descanso || 60} segundos
                 </Text>
               </Text>
@@ -509,12 +587,18 @@ export default function TreinarScreen() {
         </ScrollView>
 
         {/* BOTÃO FIXO DE AÇÃO INFERIOR */}
-        <View style={styles.bottomBar}>
+        <View
+          style={[
+            styles.bottomBar,
+            { backgroundColor: colors.background, borderColor: colors.cardBorder },
+          ]}
+        >
           <TouchableOpacity
             onPress={() => concluirSerie(exercicioAtual)}
             style={[
               styles.btnConcluirSerie,
-              estadoAtual.concluido && styles.btnConcluido,
+              { backgroundColor: colors.primary },
+              estadoAtual.concluido && { backgroundColor: colors.cardSecondary },
             ]}
           >
             <Text style={styles.btnConcluirSerieText}>
@@ -534,19 +618,28 @@ export default function TreinarScreen() {
         >
           <View style={styles.modalOverlay}>
             {/* Gaveta Lateral à Esquerda */}
-            <View style={styles.drawerContainer}>
+            <View
+              style={[
+                styles.drawerContainer,
+                { backgroundColor: colors.card },
+              ]}
+            >
               <View style={styles.drawerHeader}>
-                <Text style={styles.drawerTitle}>📋 Lista de Exercícios</Text>
+                <Text style={[styles.drawerTitle, { color: colors.text }]}>
+                  📋 Lista de Exercícios
+                </Text>
                 <TouchableOpacity
                   onPress={() => setMenuLateralAberto(false)}
                   style={styles.drawerCloseBtn}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <Text style={styles.drawerCloseBtnText}>✕</Text>
+                  <Text style={[styles.drawerCloseBtnText, { color: colors.textSecondary }]}>
+                    ✕
+                  </Text>
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.drawerSub}>
+              <Text style={[styles.drawerSub, { color: colors.textMuted }]}>
                 Toque no nome para mudar de aparelho ou na caixa para marcar.
               </Text>
 
@@ -565,8 +658,18 @@ export default function TreinarScreen() {
                       key={item.exercicio_id}
                       style={[
                         styles.drawerItem,
-                        isAtivo && styles.drawerItemAtivo,
-                        est.concluido && styles.drawerItemConcluido,
+                        {
+                          backgroundColor: colors.background,
+                          borderColor: colors.cardBorder,
+                        },
+                        isAtivo && {
+                          borderColor: colors.accent,
+                          backgroundColor: colors.accentLight,
+                        },
+                        est.concluido && {
+                          backgroundColor: colors.successLight,
+                          borderColor: colors.success,
+                        },
                       ]}
                     >
                       {/* Checkbox direta */}
@@ -591,20 +694,34 @@ export default function TreinarScreen() {
                           <Text
                             style={[
                               styles.drawerItemNome,
-                              est.concluido && styles.drawerItemNomeRiscado,
-                              isAtivo && styles.drawerItemNomeAtivo,
+                              { color: colors.text },
+                              est.concluido && {
+                                textDecorationLine: "line-through",
+                                color: colors.textMuted,
+                              },
+                              isAtivo && { color: colors.accent },
                             ]}
                             numberOfLines={1}
                           >
                             {item.exercicio?.nome}
                           </Text>
                           {isAtivo && (
-                            <View style={styles.badgeAtual}>
+                            <View
+                              style={[
+                                styles.badgeAtual,
+                                { backgroundColor: colors.accent },
+                              ]}
+                            >
                               <Text style={styles.badgeAtualText}>Atual</Text>
                             </View>
                           )}
                         </View>
-                        <Text style={styles.drawerItemStatus}>
+                        <Text
+                          style={[
+                            styles.drawerItemStatus,
+                            { color: colors.textSecondary },
+                          ]}
+                        >
                           {est.serieAtual}/{est.totalSeries} séries • {est.carga} kg
                         </Text>
                       </TouchableOpacity>
@@ -618,7 +735,7 @@ export default function TreinarScreen() {
                   setMenuLateralAberto(false);
                   confirmarEncerramento();
                 }}
-                style={styles.drawerBtnEncerrar}
+                style={[styles.drawerBtnEncerrar, { backgroundColor: colors.danger }]}
               >
                 <Text style={styles.drawerBtnEncerrarText}>🏁 Encerrar Treino</Text>
               </TouchableOpacity>
@@ -626,7 +743,7 @@ export default function TreinarScreen() {
 
             {/* Backdrop clicável à direita para fechar a gaveta */}
             <TouchableOpacity
-              style={styles.modalBackdrop}
+              style={[styles.modalBackdrop, { backgroundColor: colors.backdrop }]}
               activeOpacity={1}
               onPress={() => setMenuLateralAberto(false)}
             />
@@ -639,22 +756,45 @@ export default function TreinarScreen() {
           transparent={true}
           animationType="slide"
         >
-          <View style={styles.celebrationOverlay}>
-            <View style={styles.celebrationCard}>
+          <View style={[styles.celebrationOverlay, { backgroundColor: colors.backdrop }]}>
+            <View
+              style={[
+                styles.celebrationCard,
+                { backgroundColor: colors.card, borderColor: colors.cardBorder },
+              ]}
+            >
               <Text style={styles.celebrationEmoji}>🎉 🏆 🔥</Text>
-              <Text style={styles.celebrationTitle}>Treino Finalizado!</Text>
-              <Text style={styles.celebrationSub}>
+              <Text style={[styles.celebrationTitle, { color: colors.text }]}>
+                Treino Finalizado!
+              </Text>
+              <Text style={[styles.celebrationSub, { color: colors.textSecondary }]}>
                 Parabéns pelo treino de hoje! A constância é o segredo do resultado.
               </Text>
 
               <View style={styles.celebrationStats}>
-                <View style={styles.statBox}>
-                  <Text style={styles.statLabel}>Tempo Total</Text>
-                  <Text style={styles.statValor}>{formatarTempo(tempoDecorrido)}</Text>
+                <View
+                  style={[
+                    styles.statBox,
+                    { backgroundColor: colors.cardSecondary, borderColor: colors.cardBorder },
+                  ]}
+                >
+                  <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+                    Tempo Total
+                  </Text>
+                  <Text style={[styles.statValor, { color: colors.primary }]}>
+                    {formatarTempo(tempoDecorrido)}
+                  </Text>
                 </View>
-                <View style={styles.statBox}>
-                  <Text style={styles.statLabel}>Exercícios</Text>
-                  <Text style={styles.statValor}>
+                <View
+                  style={[
+                    styles.statBox,
+                    { backgroundColor: colors.cardSecondary, borderColor: colors.cardBorder },
+                  ]}
+                >
+                  <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+                    Exercícios
+                  </Text>
+                  <Text style={[styles.statValor, { color: colors.primary }]}>
                     {concluidosCount}/{totalExercicios}
                   </Text>
                 </View>
@@ -665,7 +805,7 @@ export default function TreinarScreen() {
                   setTreinoFinalizadoModal(false);
                   router.replace("/(drawer)/treino");
                 }}
-                style={styles.btnVoltarHome}
+                style={[styles.btnVoltarHome, { backgroundColor: colors.primary }]}
               >
                 <Text style={styles.btnVoltarHomeText}>🏠 Voltar aos Treinos</Text>
               </TouchableOpacity>
@@ -680,52 +820,41 @@ export default function TreinarScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#111",
-    paddingTop: Platform.OS === "android" ? (RNStatusBar.currentHeight || 24) : 0,
   },
   container: {
     flex: 1,
-    backgroundColor: "#f5f6fa",
   },
   centerContainer: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f5f6fa",
   },
   loadingText: {
     marginTop: 12,
     fontSize: 15,
-    color: "#747d8c",
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#111",
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderColor: "#222",
   },
   btnMenu: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#222",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#333",
   },
   btnMenuIcon: {
-    color: "#00b894",
     fontSize: 16,
     fontWeight: "bold",
     marginRight: 4,
   },
   btnMenuText: {
-    color: "#fff",
     fontSize: 12,
     fontWeight: "bold",
   },
@@ -735,7 +864,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
   headerTreinoNome: {
-    color: "#fff",
     fontSize: 15,
     fontWeight: "bold",
   },
@@ -745,30 +873,24 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   headerTimer: {
-    color: "#00b894",
     fontSize: 12,
     fontWeight: "bold",
   },
   headerDot: {
-    color: "#666",
     marginHorizontal: 5,
   },
   headerProgresso: {
-    color: "#aaa",
     fontSize: 11,
   },
   btnVoltar: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: "#222",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#333",
   },
   btnVoltarText: {
-    color: "#fff",
     fontSize: 15,
     fontWeight: "bold",
   },
@@ -777,11 +899,9 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   cardPrincipal: {
-    backgroundColor: "#fff",
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: "#e1e2e6",
     shadowColor: "#000",
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 4 },
@@ -791,46 +911,38 @@ const styles = StyleSheet.create({
   },
   badgeExercicioIndex: {
     alignSelf: "flex-start",
-    backgroundColor: "#eef2ff",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 6,
     marginBottom: 8,
   },
   badgeExercicioIndexText: {
-    color: "#4f46e5",
     fontSize: 12,
     fontWeight: "bold",
   },
   nomeExercicio: {
     fontSize: 22,
     fontWeight: "bold",
-    color: "#2f3640",
     marginBottom: 4,
   },
   descExercicio: {
     fontSize: 13,
-    color: "#747d8c",
     marginBottom: 16,
   },
   seriesIndicatorContainer: {
-    backgroundColor: "#f8f9fa",
     borderRadius: 12,
     padding: 14,
     marginVertical: 12,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#ededed",
   },
   seriesLabel: {
     fontSize: 14,
-    color: "#747d8c",
     marginBottom: 10,
   },
   seriesDestaque: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "#0984e3",
   },
   seriesDotsRow: {
     flexDirection: "row",
@@ -841,22 +953,12 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: "#e4e7eb",
     alignItems: "center",
     justifyContent: "center",
-  },
-  serieDotFeito: {
-    backgroundColor: "#00b894",
-  },
-  serieDotAtual: {
-    backgroundColor: "#0984e3",
-    borderWidth: 2,
-    borderColor: "#74b9ff",
   },
   serieDotText: {
     fontSize: 13,
     fontWeight: "bold",
-    color: "#747d8c",
   },
   serieDotTextActive: {
     color: "#fff",
@@ -868,51 +970,41 @@ const styles = StyleSheet.create({
   },
   paramBox: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
     borderRadius: 12,
     padding: 12,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#ededed",
   },
   paramLabel: {
     fontSize: 11,
     fontWeight: "600",
-    color: "#747d8c",
     marginBottom: 6,
   },
   paramValor: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#2f3640",
   },
   stepperCarga: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#dcdde1",
     overflow: "hidden",
   },
   stepperCargaBtn: {
     paddingHorizontal: 10,
     paddingVertical: 6,
-    backgroundColor: "#f1f2f6",
   },
   stepperCargaBtnText: {
     fontSize: 14,
     fontWeight: "bold",
-    color: "#2f3640",
   },
   stepperCargaText: {
     paddingHorizontal: 8,
     fontSize: 14,
     fontWeight: "bold",
-    color: "#2f3640",
   },
   descansoCard: {
-    backgroundColor: "#1e293b",
     borderRadius: 16,
     padding: 20,
     alignItems: "center",
@@ -924,21 +1016,18 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   descansoTitulo: {
-    color: "#38bdf8",
     fontSize: 12,
     fontWeight: "bold",
     letterSpacing: 1,
     marginBottom: 6,
   },
   descansoCronometro: {
-    color: "#fff",
     fontSize: 48,
     fontWeight: "bold",
     fontVariant: ["tabular-nums"],
     marginVertical: 4,
   },
   descansoSub: {
-    color: "#94a3b8",
     fontSize: 13,
     marginBottom: 14,
   },
@@ -947,18 +1036,15 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   btnMaisTempo: {
-    backgroundColor: "rgba(255,255,255,0.15)",
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
   },
   btnMaisTempoText: {
-    color: "#fff",
     fontWeight: "bold",
     fontSize: 13,
   },
   btnPularDescanso: {
-    backgroundColor: "#00b894",
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
@@ -969,29 +1055,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   descansoInativoCard: {
-    backgroundColor: "#fff",
     borderRadius: 12,
     padding: 14,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#e1e2e6",
   },
   descansoInativoText: {
     fontSize: 13,
-    color: "#747d8c",
   },
   bottomBar: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "rgba(245, 246, 250, 0.95)",
     padding: 16,
     borderTopWidth: 1,
-    borderColor: "#e1e2e6",
   },
   btnConcluirSerie: {
-    backgroundColor: "#00b894",
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",
@@ -1000,9 +1080,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 8,
     elevation: 4,
-  },
-  btnConcluido: {
-    backgroundColor: "#636e72",
   },
   btnConcluirSerieText: {
     color: "#fff",
@@ -1015,7 +1092,6 @@ const styles = StyleSheet.create({
   },
   drawerContainer: {
     width: "82%",
-    backgroundColor: "#fff",
     padding: 16,
     paddingTop: Platform.OS === "ios" ? 50 : 25,
     shadowColor: "#000",
@@ -1026,7 +1102,6 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
   },
   drawerHeader: {
     flexDirection: "row",
@@ -1037,38 +1112,25 @@ const styles = StyleSheet.create({
   drawerTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#2f3640",
   },
   drawerCloseBtn: {
     padding: 6,
   },
   drawerCloseBtnText: {
     fontSize: 18,
-    color: "#747d8c",
     fontWeight: "bold",
   },
   drawerSub: {
     fontSize: 12,
-    color: "#a4b0be",
     marginBottom: 16,
   },
   drawerItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f8f9fa",
     borderRadius: 10,
     padding: 10,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: "#e1e2e6",
-  },
-  drawerItemAtivo: {
-    borderColor: "#0984e3",
-    backgroundColor: "#ebf8ff",
-  },
-  drawerItemConcluido: {
-    backgroundColor: "#f0fdf4",
-    borderColor: "#bbf7d0",
   },
   checkboxTouch: {
     paddingRight: 10,
@@ -1079,22 +1141,12 @@ const styles = StyleSheet.create({
   drawerItemNome: {
     fontSize: 14,
     fontWeight: "bold",
-    color: "#2f3640",
-  },
-  drawerItemNomeRiscado: {
-    textDecorationLine: "line-through",
-    color: "#a4b0be",
-  },
-  drawerItemNomeAtivo: {
-    color: "#0984e3",
   },
   drawerItemStatus: {
     fontSize: 12,
-    color: "#747d8c",
     marginTop: 2,
   },
   badgeAtual: {
-    backgroundColor: "#0984e3",
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -1106,7 +1158,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   drawerBtnEncerrar: {
-    backgroundColor: "#d63031",
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: "center",
@@ -1119,18 +1170,17 @@ const styles = StyleSheet.create({
   },
   celebrationOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.7)",
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
   },
   celebrationCard: {
-    backgroundColor: "#fff",
     borderRadius: 20,
     padding: 26,
     width: "100%",
     maxWidth: 360,
     alignItems: "center",
+    borderWidth: 1,
   },
   celebrationEmoji: {
     fontSize: 48,
@@ -1139,12 +1189,10 @@ const styles = StyleSheet.create({
   celebrationTitle: {
     fontSize: 22,
     fontWeight: "bold",
-    color: "#2f3640",
     marginBottom: 8,
   },
   celebrationSub: {
     fontSize: 13,
-    color: "#747d8c",
     textAlign: "center",
     marginBottom: 20,
   },
@@ -1156,25 +1204,20 @@ const styles = StyleSheet.create({
   },
   statBox: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
     borderRadius: 10,
     padding: 12,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#ededed",
   },
   statLabel: {
     fontSize: 11,
-    color: "#747d8c",
     marginBottom: 4,
   },
   statValor: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#00b894",
   },
   btnVoltarHome: {
-    backgroundColor: "#00b894",
     paddingVertical: 14,
     borderRadius: 10,
     width: "100%",
