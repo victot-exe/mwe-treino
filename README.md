@@ -29,6 +29,44 @@ After starting the project, you can open the app using:
 
 ---
 
+## 📦 Gerando o APK via Docker (Build Local)
+
+Você pode compilar o arquivo instalável `.apk` do Android diretamente na sua máquina sem precisar configurar o Android SDK ou Java manualmente, utilizando o **Docker**.
+
+### 📋 Pré-requisitos
+* [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado e em execução.
+
+### ⚙️ Como compilar:
+
+#### Opção 1: Via Script PowerShell (Recomendado no Windows)
+Basta executar o script automatizado na raiz do projeto:
+```powershell
+.\build-apk-docker.ps1
+```
+
+#### Opção 2: Via Docker Compose
+```bash
+docker compose up --build
+```
+
+#### Opção 3: Via Docker CLI (Manual)
+1. Construa a imagem do builder:
+```bash
+docker build -t mwe-android-builder .
+```
+2. Execute o container montando a pasta do projeto:
+```bash
+# PowerShell (Windows)
+docker run --rm -v "${PWD}:/app" mwe-android-builder
+
+# Bash / Linux / macOS
+docker run --rm -v "$(pwd):/app" mwe-android-builder
+```
+
+> 💡 **Resultado:** O instalável final será gerado automaticamente na raiz do projeto com o nome `mwe-treino.apk`.
+
+---
+
 ## 📱 About the App
 
 **MWE-TREINO** is a gym companion app designed to help users:

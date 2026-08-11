@@ -27,4 +27,26 @@ export interface ExercicioConfigItem {
     repeticoes: number;
     descanso: number;
     carga: number;
+}
+
+export interface HistoricoSessao {
+    id: number;
+    treino_id?: number | null;
+    nome_treino: string;
+    data_inicio: string;
+    data_fim: string;
+    duracao_segundos: number;
+    exercicios_concluidos: number;
+    total_exercicios: number;
+    exercicios?: HistoricoSessaoExercicio[];
+}
+
+export interface HistoricoSessaoExercicio {
+    id: number;
+    sessao_id: number;
+    exercicio_id?: number | null;
+    nome_exercicio: string;
+    series_feitas: number;
+    repeticoes: number;
+    carga: number;
 }

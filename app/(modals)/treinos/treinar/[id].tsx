@@ -1,5 +1,6 @@
 import { useTheme } from "@/src/context/ThemeContext";
 import { updateExercicioTreino } from "@/src/database/exercicioTreinoRepository";
+import { salvarSessaoTreino } from "@/src/database/historicoRepository";
 import { getTreinoById } from "@/src/database/treinoRepository";
 import {
   agendarNotificacaoDescanso,
@@ -7,6 +8,7 @@ import {
   requestNotificationPermissions,
 } from "@/src/services/notificationService";
 import { ExercicioTreino, Treino } from "@/src/types";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -14,12 +16,16 @@ import {
   Alert,
   AppState,
   AppStateStatus,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -64,6 +70,10 @@ export default function TreinarScreen() {
 
   // Modal de Celebração de Treino Concluído
   const [treinoFinalizadoModal, setTreinoFinalizadoModal] = useState(false);
+
+  // Modal de Edição Manual de Carga
+  const [modalEditarCarga, setModalEditarCarga] = useState(false);
+  const [inputCargaTexto, setInputCargaTexto] = useState("");
 
   // Carrega treino, solicita permissões e inicializa progresso
   const inicializarTreino = useCallback(async () => {
@@ -203,6 +213,53 @@ export default function TreinarScreen() {
     }
   };
 
+  // Ref para evitar salvar a mesma sessão mais de uma vez
+  const salvoRef = useRef(false);
+
+  // Função central para persistir a sessão e abrir modal de parabéns
+  const finalizarESalvarTreino = useCallback(
+    async (progressoAtual?: { [key: number]: ProgressoExercicio }) => {
+      if (salvoRef.current || !treino) return;
+      salvoRef.current = true;
+
+      await pularDescanso();
+
+      try {
+        const mapa = progressoAtual || progresso;
+        const dataInicio = new Date(inicioTreinoTimestampRef.current).toISOString();
+        const dataFim = new Date().toISOString();
+        const concluidos = Object.values(mapa).filter((p) => p.concluido).length;
+
+        const exerciciosParaSalvar = (treino.exercicios || []).map((item) => {
+          const est = mapa[item.exercicio_id];
+          return {
+            exercicio_id: item.exercicio_id,
+            nome_exercicio: item.exercicio?.nome || "Exercício",
+            series_feitas: est ? (est.concluido ? est.totalSeries : est.serieAtual) : item.series,
+            repeticoes: item.repeticoes,
+            carga: est ? est.carga : item.carga,
+          };
+        });
+
+        await salvarSessaoTreino({
+          treino_id: treino.id,
+          nome_treino: treino.nome,
+          data_inicio: dataInicio,
+          data_fim: dataFim,
+          duracao_segundos: tempoDecorrido,
+          exercicios_concluidos: concluidos,
+          total_exercicios: treino.exercicios?.length || 0,
+          exercicios: exerciciosParaSalvar,
+        });
+      } catch (error) {
+        console.error("Erro ao salvar histórico de treino:", error);
+      }
+
+      setTreinoFinalizadoModal(true);
+    },
+    [treino, progresso, tempoDecorrido]
+  );
+
   // Concluir Série do Exercício Ativo
   const concluirSerie = (exercicioAtual: ExercicioTreino) => {
     const estado = progresso[exercicioAtual.exercicio_id];
@@ -232,8 +289,7 @@ export default function TreinarScreen() {
 
         const todosConcluidos = Object.values(novoProgresso).every((p) => p.concluido);
         if (todosConcluidos) {
-          pularDescanso();
-          setTreinoFinalizadoModal(true);
+          finalizarESalvarTreino(novoProgresso);
         } else {
           iniciarDescanso(tempoDescanso, nomeEx);
           const proximoIndex = treino?.exercicios?.findIndex(
@@ -265,20 +321,30 @@ export default function TreinarScreen() {
 
       const todosConcluidos = Object.values(novoProgresso).every((p) => p.concluido);
       if (todosConcluidos) {
-        setTreinoFinalizadoModal(true);
+        finalizarESalvarTreino(novoProgresso);
       }
 
       return novoProgresso;
     });
   };
 
-  // Ajuste rápido de carga durante o treino
-  const alterarCargaRapida = async (delta: number) => {
+  // Abrir modal de edição manual de carga
+  const abrirEdicaoManualCarga = () => {
+    const exAtual = treino?.exercicios?.[exercicioAtivoIndex];
+    if (!exAtual) return;
+    const progAtual = progresso[exAtual.exercicio_id];
+    setInputCargaTexto((progAtual?.carga ?? exAtual.carga ?? 0).toString());
+    setModalEditarCarga(true);
+  };
+
+  // Salvar carga digitada manualmente
+  const salvarCargaManual = async () => {
     const exAtual = treino?.exercicios?.[exercicioAtivoIndex];
     if (!exAtual) return;
 
-    const progAtual = progresso[exAtual.exercicio_id];
-    const novaCarga = Math.max(0, (progAtual?.carga || 0) + delta);
+    const valorLimpo = inputCargaTexto.replace(",", ".");
+    const valorNum = parseFloat(valorLimpo);
+    const novaCarga = isNaN(valorNum) ? 0 : Math.max(0, valorNum);
 
     setProgresso((prev) => ({
       ...prev,
@@ -291,7 +357,11 @@ export default function TreinarScreen() {
     if (exAtual.id) {
       await updateExercicioTreino(exAtual.id, { carga: novaCarga });
     }
+
+    setModalEditarCarga(false);
+    Keyboard.dismiss();
   };
+
 
   // Confirmar saída do treino
   const confirmarEncerramento = () => {
@@ -301,11 +371,10 @@ export default function TreinarScreen() {
       [
         { text: "Continuar Treinando", style: "cancel" },
         {
-          text: "Encerrar",
+          text: "Encerrar e Salvar",
           style: "destructive",
           onPress: () => {
-            pularDescanso();
-            setTreinoFinalizadoModal(true);
+            finalizarESalvarTreino();
           },
         },
       ]
@@ -354,7 +423,7 @@ export default function TreinarScreen() {
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             activeOpacity={0.7}
           >
-            <Text style={[styles.btnMenuIcon, { color: colors.primary }]}>⋮</Text>
+            <Ionicons name="list" size={16} color={colors.primary} style={{ marginRight: 4 }} />
             <Text style={[styles.btnMenuText, { color: colors.text }]}>Lista</Text>
           </TouchableOpacity>
 
@@ -364,9 +433,12 @@ export default function TreinarScreen() {
               {treino.nome}
             </Text>
             <View style={styles.headerStatusRow}>
-              <Text style={[styles.headerTimer, { color: colors.primary }]}>
-                ⏱️ {formatarTempo(tempoDecorrido)}
-              </Text>
+              <View style={styles.headerTimerRow}>
+                <Ionicons name="time-outline" size={13} color={colors.primary} />
+                <Text style={[styles.headerTimer, { color: colors.primary }]}>
+                  {formatarTempo(tempoDecorrido)}
+                </Text>
+              </View>
               <Text style={[styles.headerDot, { color: colors.textMuted }]}>•</Text>
               <Text style={[styles.headerProgresso, { color: colors.textSecondary }]}>
                 {concluidosCount}/{totalExercicios} feitos
@@ -395,7 +467,7 @@ export default function TreinarScreen() {
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             activeOpacity={0.7}
           >
-            <Text style={[styles.btnVoltarText, { color: colors.text }]}>✕</Text>
+            <Ionicons name="close" size={18} color={colors.text} />
           </TouchableOpacity>
         </View>
 
@@ -494,8 +566,10 @@ export default function TreinarScreen() {
                 </Text>
               </View>
 
-              {/* Carga Ajustável */}
-              <View
+              {/* Carga Atual (Toque para Editar) */}
+              <TouchableOpacity
+                onPress={abrirEdicaoManualCarga}
+                activeOpacity={0.7}
                 style={[
                   styles.paramBox,
                   { backgroundColor: colors.cardSecondary, borderColor: colors.cardBorder },
@@ -504,33 +578,18 @@ export default function TreinarScreen() {
                 <Text style={[styles.paramLabel, { color: colors.textSecondary }]}>
                   Carga Atual
                 </Text>
-                <View
-                  style={[
-                    styles.stepperCarga,
-                    { backgroundColor: colors.stepperBg, borderColor: colors.inputBorder },
-                  ]}
-                >
-                  <TouchableOpacity
-                    onPress={() => alterarCargaRapida(-5)}
-                    style={[styles.stepperCargaBtn, { backgroundColor: colors.stepperBtn }]}
-                  >
-                    <Text style={[styles.stepperCargaBtnText, { color: colors.text }]}>
-                      -
-                    </Text>
-                  </TouchableOpacity>
-                  <Text style={[styles.stepperCargaText, { color: colors.text }]}>
+                <View style={styles.cargaDisplayRow}>
+                  <Text style={[styles.paramValor, { color: colors.accent }]}>
                     {estadoAtual.carga} kg
                   </Text>
-                  <TouchableOpacity
-                    onPress={() => alterarCargaRapida(5)}
-                    style={[styles.stepperCargaBtn, { backgroundColor: colors.stepperBtn }]}
-                  >
-                    <Text style={[styles.stepperCargaBtnText, { color: colors.text }]}>
-                      +
-                    </Text>
-                  </TouchableOpacity>
+                  <Ionicons
+                    name="create-outline"
+                    size={14}
+                    color={colors.accent}
+                    style={{ marginLeft: 4 }}
+                  />
                 </View>
-              </View>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -542,9 +601,12 @@ export default function TreinarScreen() {
                 { backgroundColor: colors.cardSecondary },
               ]}
             >
-              <Text style={[styles.descansoTitulo, { color: colors.accent }]}>
-                ⏱️ DESCANSO EM ANDAMENTO
-              </Text>
+              <View style={styles.descansoTituloRow}>
+                <Ionicons name="hourglass-outline" size={16} color={colors.accent} />
+                <Text style={[styles.descansoTitulo, { color: colors.accent }]}>
+                  DESCANSO EM ANDAMENTO
+                </Text>
+              </View>
               <Text style={[styles.descansoCronometro, { color: colors.text }]}>
                 {formatarTempo(tempoRestanteDescanso)}
               </Text>
@@ -565,7 +627,8 @@ export default function TreinarScreen() {
                   onPress={pularDescanso}
                   style={[styles.btnPularDescanso, { backgroundColor: colors.primary }]}
                 >
-                  <Text style={styles.btnPularDescansoText}>⏩ Pular Descanso</Text>
+                  <Ionicons name="play-skip-forward" size={15} color="#fff" style={{ marginRight: 6 }} />
+                  <Text style={styles.btnPularDescansoText}>Pular Descanso</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -601,10 +664,16 @@ export default function TreinarScreen() {
               estadoAtual.concluido && { backgroundColor: colors.cardSecondary },
             ]}
           >
+            <Ionicons
+              name="checkmark-circle"
+              size={20}
+              color="#fff"
+              style={{ marginRight: 6 }}
+            />
             <Text style={styles.btnConcluirSerieText}>
               {estadoAtual.concluido
-                ? "✅ Exercício Concluído!"
-                : `✅ Concluir Série (${estadoAtual.serieAtual}/${estadoAtual.totalSeries})`}
+                ? "Exercício Concluído!"
+                : `Concluir Série (${estadoAtual.serieAtual}/${estadoAtual.totalSeries})`}
             </Text>
           </TouchableOpacity>
         </View>
@@ -625,17 +694,18 @@ export default function TreinarScreen() {
               ]}
             >
               <View style={styles.drawerHeader}>
-                <Text style={[styles.drawerTitle, { color: colors.text }]}>
-                  📋 Lista de Exercícios
-                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Ionicons name="list-outline" size={20} color={colors.text} />
+                  <Text style={[styles.drawerTitle, { color: colors.text }]}>
+                    Lista de Exercícios
+                  </Text>
+                </View>
                 <TouchableOpacity
                   onPress={() => setMenuLateralAberto(false)}
                   style={styles.drawerCloseBtn}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <Text style={[styles.drawerCloseBtnText, { color: colors.textSecondary }]}>
-                    ✕
-                  </Text>
+                  <Ionicons name="close" size={20} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
 
@@ -677,9 +747,11 @@ export default function TreinarScreen() {
                         onPress={() => toggleCheckboxManual(item.exercicio_id)}
                         style={styles.checkboxTouch}
                       >
-                        <Text style={styles.checkboxEmoji}>
-                          {est.concluido ? "✅" : "⬜"}
-                        </Text>
+                        <Ionicons
+                          name={est.concluido ? "checkmark-circle" : "ellipse-outline"}
+                          size={24}
+                          color={est.concluido ? colors.success : colors.textMuted}
+                        />
                       </TouchableOpacity>
 
                       {/* Toque no Nome muda para este exercício */}
@@ -737,7 +809,8 @@ export default function TreinarScreen() {
                 }}
                 style={[styles.drawerBtnEncerrar, { backgroundColor: colors.danger }]}
               >
-                <Text style={styles.drawerBtnEncerrarText}>🏁 Encerrar Treino</Text>
+                <Ionicons name="flag-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
+                <Text style={styles.drawerBtnEncerrarText}>Encerrar Treino</Text>
               </TouchableOpacity>
             </View>
 
@@ -763,7 +836,14 @@ export default function TreinarScreen() {
                 { backgroundColor: colors.card, borderColor: colors.cardBorder },
               ]}
             >
-              <Text style={styles.celebrationEmoji}>🎉 🏆 🔥</Text>
+              <View
+                style={[
+                  styles.celebrationTrophyCircle,
+                  { backgroundColor: colors.cardSecondary },
+                ]}
+              >
+                <Ionicons name="trophy" size={44} color="#eab308" />
+              </View>
               <Text style={[styles.celebrationTitle, { color: colors.text }]}>
                 Treino Finalizado!
               </Text>
@@ -803,14 +883,126 @@ export default function TreinarScreen() {
               <TouchableOpacity
                 onPress={() => {
                   setTreinoFinalizadoModal(false);
-                  router.replace("/(drawer)/treino");
+                  router.replace("/(drawer)/historico" as any);
                 }}
-                style={[styles.btnVoltarHome, { backgroundColor: colors.primary }]}
+                style={[
+                  styles.btnVoltarHome,
+                  { backgroundColor: colors.accent, marginBottom: 10 },
+                ]}
               >
-                <Text style={styles.btnVoltarHomeText}>🏠 Voltar aos Treinos</Text>
+                <Ionicons name="time-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
+                <Text style={styles.btnVoltarHomeText}>Ver no Histórico</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => {
+                  setTreinoFinalizadoModal(false);
+                  router.replace("/(drawer)/treino" as any);
+                }}
+                style={[
+                  styles.btnVoltarHome,
+                  { backgroundColor: colors.cardSecondary, borderWidth: 1, borderColor: colors.cardBorder },
+                ]}
+              >
+                <Ionicons name="home-outline" size={18} color={colors.text} style={{ marginRight: 6 }} />
+                <Text style={[styles.btnVoltarHomeText, { color: colors.text }]}>
+                  Voltar aos Treinos
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
+        </Modal>
+
+        {/* MODAL DE EDIÇÃO MANUAL DE CARGA */}
+        <Modal
+          visible={modalEditarCarga}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setModalEditarCarga(false)}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            style={[styles.modalCargaOverlay, { backgroundColor: colors.backdrop }]}
+          >
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+              <View style={styles.modalCargaDismissArea}>
+                <View
+                  style={[
+                    styles.modalCargaCard,
+                    { backgroundColor: colors.card, borderColor: colors.cardBorder },
+                  ]}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                    <Ionicons name="create-outline" size={22} color={colors.accent} />
+                    <Text style={[styles.modalCargaTitle, { color: colors.text }]}>
+                      Ajustar Carga
+                    </Text>
+                  </View>
+                  <Text
+                    style={[styles.modalCargaSub, { color: colors.textSecondary }]}
+                    numberOfLines={1}
+                  >
+                    {exercicioAtual.exercicio?.nome}
+                  </Text>
+
+                  <View
+                    style={[
+                      styles.modalCargaInputContainer,
+                      { backgroundColor: colors.inputBg, borderColor: colors.inputBorder },
+                    ]}
+                  >
+                    <TextInput
+                      style={[styles.modalCargaInput, { color: colors.text }]}
+                      value={inputCargaTexto}
+                      onChangeText={setInputCargaTexto}
+                      keyboardType="numeric"
+                      selectTextOnFocus={true}
+                      autoFocus={true}
+                      placeholder="0"
+                      placeholderTextColor={colors.textMuted}
+                      maxLength={6}
+                    />
+                    <Text style={[styles.modalCargaUnit, { color: colors.textSecondary }]}>
+                      kg
+                    </Text>
+                  </View>
+
+                  <View style={styles.modalCargaBotoesRow}>
+                    <TouchableOpacity
+                      onPress={() => setModalEditarCarga(false)}
+                      style={[
+                        styles.modalCargaBtnCancelar,
+                        { backgroundColor: colors.cardSecondary, borderColor: colors.cardBorder },
+                      ]}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          styles.modalCargaBtnCancelarText,
+                          { color: colors.textSecondary },
+                        ]}
+                      >
+                        Cancelar
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={salvarCargaManual}
+                      style={[
+                        styles.modalCargaBtnSalvar,
+                        { backgroundColor: colors.primary },
+                      ]}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.modalCargaBtnSalvarText}>
+                        Salvar Carga
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </KeyboardAvoidingView>
         </Modal>
       </View>
     </SafeAreaView>
@@ -871,6 +1063,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginTop: 2,
+  },
+  headerTimerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
   headerTimer: {
     fontSize: 12,
@@ -984,25 +1181,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
-  stepperCarga: {
+  cargaDisplayRow: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 8,
-    borderWidth: 1,
-    overflow: "hidden",
+    justifyContent: "center",
   },
-  stepperCargaBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  stepperCargaBtnText: {
-    fontSize: 14,
-    fontWeight: "bold",
-  },
-  stepperCargaText: {
-    paddingHorizontal: 8,
-    fontSize: 14,
-    fontWeight: "bold",
+  cargaPencilIcon: {
+    fontSize: 13,
+    marginLeft: 3,
   },
   descansoCard: {
     borderRadius: 16,
@@ -1015,21 +1201,26 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  descansoTituloRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 6,
+  },
   descansoTitulo: {
     fontSize: 12,
     fontWeight: "bold",
     letterSpacing: 1,
-    marginBottom: 6,
   },
   descansoCronometro: {
-    fontSize: 48,
+    fontSize: 36,
     fontWeight: "bold",
-    fontVariant: ["tabular-nums"],
     marginVertical: 4,
   },
   descansoSub: {
-    fontSize: 13,
-    marginBottom: 14,
+    fontSize: 12,
+    textAlign: "center",
+    marginBottom: 12,
   },
   descansoBotoesRow: {
     flexDirection: "row",
@@ -1045,6 +1236,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   btnPularDescanso: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
@@ -1072,6 +1265,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
   },
   btnConcluirSerie: {
+    flexDirection: "row",
+    justifyContent: "center",
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",
@@ -1116,10 +1311,6 @@ const styles = StyleSheet.create({
   drawerCloseBtn: {
     padding: 6,
   },
-  drawerCloseBtnText: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
   drawerSub: {
     fontSize: 12,
     marginBottom: 16,
@@ -1134,9 +1325,6 @@ const styles = StyleSheet.create({
   },
   checkboxTouch: {
     paddingRight: 10,
-  },
-  checkboxEmoji: {
-    fontSize: 20,
   },
   drawerItemNome: {
     fontSize: 14,
@@ -1158,6 +1346,8 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   drawerBtnEncerrar: {
+    flexDirection: "row",
+    justifyContent: "center",
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: "center",
@@ -1182,9 +1372,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1,
   },
-  celebrationEmoji: {
-    fontSize: 48,
-    marginBottom: 12,
+  celebrationTrophyCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
   },
   celebrationTitle: {
     fontSize: 22,
@@ -1218,6 +1412,8 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   btnVoltarHome: {
+    flexDirection: "row",
+    justifyContent: "center",
     paddingVertical: 14,
     borderRadius: 10,
     width: "100%",
@@ -1226,6 +1422,99 @@ const styles = StyleSheet.create({
   btnVoltarHomeText: {
     color: "#fff",
     fontSize: 16,
+    fontWeight: "bold",
+  },
+  stepperCargaTouch: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalCargaOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalCargaDismissArea: {
+    flex: 1,
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  modalCargaCard: {
+    width: "100%",
+    maxWidth: 340,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 20,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  modalCargaTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  modalCargaSub: {
+    fontSize: 14,
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  modalCargaInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+    borderWidth: 1.5,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    width: "100%",
+    marginBottom: 20,
+  },
+  modalCargaInput: {
+    fontSize: 28,
+    fontWeight: "bold",
+    textAlign: "center",
+    minWidth: 80,
+    paddingVertical: 4,
+  },
+  modalCargaUnit: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginLeft: 6,
+  },
+  modalCargaBotoesRow: {
+    flexDirection: "row",
+    gap: 10,
+    width: "100%",
+  },
+  modalCargaBtnCancelar: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+  },
+  modalCargaBtnCancelarText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  modalCargaBtnSalvar: {
+    flex: 1.5,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalCargaBtnSalvarText: {
+    color: "#fff",
+    fontSize: 14,
     fontWeight: "bold",
   },
 });

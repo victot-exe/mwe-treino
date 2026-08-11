@@ -1,25 +1,35 @@
 import { ThemeMode, useTheme } from "@/src/context/ThemeContext";
+import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export default function ConfiguracoesScreen() {
   const { colors, themeMode, setThemeMode, isDark } = useTheme();
 
-  const opcoesTema: { id: ThemeMode; titulo: string; icone: string; desc: string }[] = [
+  const opcoesTema: {
+    id: ThemeMode;
+    titulo: string;
+    icone: keyof typeof Ionicons.glyphMap;
+    iconeColor: string;
+    desc: string;
+  }[] = [
     {
       id: "dark",
-      icone: "🌙",
+      icone: "moon",
+      iconeColor: colors.accent,
       titulo: "Modo Escuro",
       desc: "Visual escuro premium, ideal para economizar bateria e conforto visual.",
     },
     {
       id: "light",
-      icone: "☀️",
+      icone: "sunny",
+      iconeColor: "#eab308",
       titulo: "Modo Claro",
       desc: "Visual claro e contrastante para ambientes bem iluminados.",
     },
     {
       id: "auto",
-      icone: "⚙️",
+      icone: "phone-portrait-outline",
+      iconeColor: colors.primary,
       titulo: "Automático",
       desc: "Acompanha o tema configurado nas configurações do seu celular.",
     },
@@ -29,7 +39,12 @@ export default function ConfiguracoesScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Seção de Aparência */}
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>🎨 Aparência do App</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
+          <Ionicons name="color-palette-outline" size={22} color={colors.accent} />
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Aparência do App
+          </Text>
+        </View>
         <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
           Escolha o tema visual da sua preferência
         </Text>
@@ -54,7 +69,14 @@ export default function ConfiguracoesScreen() {
               ]}
             >
               <View style={styles.optionRow}>
-                <Text style={styles.optionIcon}>{opcao.icone}</Text>
+                <View
+                  style={[
+                    styles.optionIconContainer,
+                    { backgroundColor: colors.cardSecondary },
+                  ]}
+                >
+                  <Ionicons name={opcao.icone} size={22} color={opcao.iconeColor} />
+                </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.optionTitle, { color: colors.text }]}>
                     {opcao.titulo}
@@ -66,6 +88,7 @@ export default function ConfiguracoesScreen() {
 
                 {selecionado && (
                   <View style={[styles.badgeAtivo, { backgroundColor: colors.primary }]}>
+                    <Ionicons name="checkmark" size={14} color="#fff" style={{ marginRight: 2 }} />
                     <Text style={styles.badgeAtivoText}>Ativo</Text>
                   </View>
                 )}
@@ -82,7 +105,12 @@ export default function ConfiguracoesScreen() {
           { backgroundColor: colors.cardSecondary, borderColor: colors.cardBorder },
         ]}
       >
-        <Text style={[styles.infoTitle, { color: colors.text }]}>📱 Sobre o MWE Treino</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 }}>
+          <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
+          <Text style={[styles.infoTitle, { color: colors.text }]}>
+            Sobre o MWE Treino
+          </Text>
+        </View>
         <Text style={[styles.infoText, { color: colors.textSecondary }]}>
           • Banco de Dados: SQLite Local (100% Offline)
         </Text>
@@ -131,8 +159,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-  optionIcon: {
-    fontSize: 28,
+  optionIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 14,
   },
   optionTitle: {
@@ -145,6 +177,8 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   badgeAtivo: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,

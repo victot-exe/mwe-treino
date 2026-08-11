@@ -2,6 +2,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { AppDispatch, RootState } from "@/src/store";
 import { initializeDatabase } from "@/src/store/databaseSlice";
 import { carregarTreinos } from "@/src/store/treinoSlice";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect } from "react";
 import {
@@ -33,22 +34,13 @@ export default function HomeScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
     >
-      {/* Banner de Boas-Vindas */}
-      <View
-        style={[
-          styles.heroCard,
-          { backgroundColor: colors.card, borderColor: colors.cardBorder },
-        ]}
-      >
-        <Text style={styles.heroEmoji}>🔥 🏋️‍♂️</Text>
-        <Text style={[styles.heroTitle, { color: colors.text }]}>MWE Treino</Text>
-        <Text style={[styles.heroSubtitle, { color: colors.textSecondary }]}>
-          Seu diário de treinos e evolução de cargas inteligente e 100% offline.
+      {/* Cards de Acesso Rápido */}
+      <View style={styles.sectionTitleRow}>
+        <Ionicons name="flash-outline" size={18} color={colors.accent} />
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          Acesso Rápido
         </Text>
       </View>
-
-      {/* Cards de Acesso Rápido */}
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>⚡ Acesso Rápido</Text>
 
       <View style={styles.gridContainer}>
         {/* Card: Meus Treinos */}
@@ -61,7 +53,7 @@ export default function HomeScreen() {
           ]}
         >
           <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardIcon}>💪</Text>
+            <MaterialCommunityIcons name="dumbbell" size={28} color={colors.primary} />
             <View style={[styles.badgeCount, { backgroundColor: colors.primary }]}>
               <Text style={styles.badgeCountText}>{treinos.length} Treinos</Text>
             </View>
@@ -81,10 +73,26 @@ export default function HomeScreen() {
             { backgroundColor: colors.card, borderColor: colors.cardBorder },
           ]}
         >
-          <Text style={styles.cardIcon}>➕</Text>
+          <Ionicons name="add-circle-outline" size={28} color={colors.accent} />
           <Text style={[styles.cardTitle, { color: colors.text }]}>Novo Treino</Text>
           <Text style={[styles.cardDesc, { color: colors.textSecondary }]}>
             Monte uma nova rotina com séries, repetições e cargas personalizadas.
+          </Text>
+        </TouchableOpacity>
+
+        {/* Card: Histórico de Treinos */}
+        <TouchableOpacity
+          onPress={() => router.push("/(drawer)/historico" as any)}
+          activeOpacity={0.8}
+          style={[
+            styles.cardAcao,
+            { backgroundColor: colors.card, borderColor: colors.cardBorder },
+          ]}
+        >
+          <Ionicons name="time-outline" size={28} color={colors.primary} />
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Histórico de Treinos</Text>
+          <Text style={[styles.cardDesc, { color: colors.textSecondary }]}>
+            Consulte seus treinos realizados, duração e progressão de cargas.
           </Text>
         </TouchableOpacity>
 
@@ -97,7 +105,7 @@ export default function HomeScreen() {
             { backgroundColor: colors.card, borderColor: colors.cardBorder },
           ]}
         >
-          <Text style={styles.cardIcon}>🎨</Text>
+          <Ionicons name="color-palette-outline" size={28} color={colors.accent} />
           <Text style={[styles.cardTitle, { color: colors.text }]}>Aparência & Tema</Text>
           <Text style={[styles.cardDesc, { color: colors.textSecondary }]}>
             Alterne entre o Modo Escuro Premium ou Modo Claro.
@@ -116,37 +124,15 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 32,
   },
-  heroCard: {
-    borderRadius: 18,
-    padding: 24,
+  sectionTitleRow: {
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 24,
-    borderWidth: 1,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  heroEmoji: {
-    fontSize: 42,
-    marginBottom: 8,
-  },
-  heroTitle: {
-    fontSize: 26,
-    fontWeight: "bold",
-    marginBottom: 6,
-  },
-  heroSubtitle: {
-    fontSize: 14,
-    textAlign: "center",
-    lineHeight: 20,
-    maxWidth: 280,
+    gap: 6,
+    marginBottom: 14,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    marginBottom: 12,
   },
   gridContainer: {
     gap: 12,

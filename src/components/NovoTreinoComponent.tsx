@@ -2,6 +2,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { carregarExercicios, removerExercicio } from "@/src/store/exercicioSlice";
 import { adicionarTreino } from "@/src/store/treinoSlice";
 import { Exercicio, ExercicioConfigItem } from "@/src/types";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { Link, router } from "expo-router";
 import { useCallback, useState } from "react";
@@ -187,7 +188,12 @@ export default function NovoTreinoComponent() {
       >
         {/* Campo Nome do Treino */}
         <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.text }]}>📝 Nome do Treino</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 }}>
+            <Ionicons name="document-text-outline" size={16} color={colors.accent} />
+            <Text style={[styles.label, { color: colors.text, marginBottom: 0 }]}>
+              Nome do Treino
+            </Text>
+          </View>
           <TextInput
             placeholder="Ex: Treino A - Peito e Tríceps"
             placeholderTextColor={colors.textMuted}
@@ -208,9 +214,12 @@ export default function NovoTreinoComponent() {
         {/* Seção de Seleção de Exercícios */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              💪 Adicionar Exercícios
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <MaterialCommunityIcons name="dumbbell" size={18} color={colors.accent} />
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Adicionar Exercícios
+              </Text>
+            </View>
             <TouchableOpacity
               onPress={() => setMostrarCatalogo(!mostrarCatalogo)}
               style={styles.toggleCatalogoBtn}
@@ -229,7 +238,7 @@ export default function NovoTreinoComponent() {
               ]}
             >
               <TextInput
-                placeholder="🔍 Pesquisar exercício..."
+                placeholder="Pesquisar exercício..."
                 placeholderTextColor={colors.textMuted}
                 value={pesquisa}
                 onChangeText={setPesquisa}
@@ -247,14 +256,18 @@ export default function NovoTreinoComponent() {
               <View style={styles.novoExercicioRow}>
                 <Link href="/(modals)/exercicio/novoExercicio" asChild>
                   <TouchableOpacity style={styles.novoExercicioBtn}>
+                    <Ionicons name="add-circle-outline" size={16} color={colors.accent} style={{ marginRight: 4 }} />
                     <Text style={[styles.novoExercicioText, { color: colors.accent }]}>
-                      ➕ Cadastrar Novo Exercício
+                      Cadastrar Novo Exercício
                     </Text>
                   </TouchableOpacity>
                 </Link>
-                <Text style={[styles.hintText, { color: colors.textMuted }]}>
-                  💡 Segure para excluir do banco
-                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                  <Ionicons name="information-circle-outline" size={12} color={colors.textMuted} />
+                  <Text style={[styles.hintText, { color: colors.textMuted }]}>
+                    Segure para excluir do banco
+                  </Text>
+                </View>
               </View>
 
               <FlatList
@@ -278,7 +291,12 @@ export default function NovoTreinoComponent() {
                         },
                       ]}
                     >
-                      <Text style={styles.checkIcon}>{selecionado ? "✅" : "➕"}</Text>
+                      <Ionicons
+                        name={selecionado ? "checkmark-circle" : "add-circle-outline"}
+                        size={22}
+                        color={selecionado ? colors.success : colors.accent}
+                        style={{ marginRight: 10 }}
+                      />
                       <View style={{ flex: 1 }}>
                         <Text
                           style={[
@@ -317,15 +335,19 @@ export default function NovoTreinoComponent() {
         {/* Exercícios Selecionados e Configuração de Séries/Carga */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              📋 Exercícios do Treino ({selecionados.length})
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Ionicons name="list-outline" size={18} color={colors.primary} />
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Exercícios do Treino ({selecionados.length})
+              </Text>
+            </View>
             {!mostrarCatalogo && (
               <TouchableOpacity
                 onPress={() => setMostrarCatalogo(true)}
                 style={[styles.addMaisBtn, { backgroundColor: colors.accent }]}
               >
-                <Text style={styles.addMaisText}>+ Adicionar</Text>
+                <Ionicons name="add" size={14} color="#fff" style={{ marginRight: 2 }} />
+                <Text style={styles.addMaisText}>Adicionar</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -337,7 +359,14 @@ export default function NovoTreinoComponent() {
                 { backgroundColor: colors.card, borderColor: colors.cardBorder },
               ]}
             >
-              <Text style={styles.emptyCardsEmoji}>🏋️‍♂️</Text>
+              <View
+                style={[
+                  styles.emptyCardsIconCircle,
+                  { backgroundColor: colors.cardSecondary },
+                ]}
+              >
+                <MaterialCommunityIcons name="dumbbell" size={42} color={colors.primary} />
+              </View>
               <Text style={[styles.emptyCardsTitle, { color: colors.text }]}>
                 Nenhum exercício adicionado
               </Text>
@@ -397,7 +426,7 @@ export default function NovoTreinoComponent() {
                     onPress={() => removerSelecionado(item.exercicio.id)}
                     style={styles.removerBtn}
                   >
-                    <Text style={styles.removerBtnText}>🗑️</Text>
+                    <Ionicons name="trash-outline" size={18} color={colors.danger} />
                   </TouchableOpacity>
                 </View>
 
@@ -541,7 +570,7 @@ export default function NovoTreinoComponent() {
                         ]}
                         keyboardType="numeric"
                         selectTextOnFocus={true}
-                        value={item.carga !== undefined ? String(item.carga) : "0"}
+                        value={item.carga ? String(item.carga) : ""}
                         onChangeText={(val) =>
                           atualizarCampo(item.exercicio.id, "carga", val)
                         }
@@ -633,7 +662,10 @@ export default function NovoTreinoComponent() {
           {salvando ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.btnSalvarText}>💾 Salvar Treino Completo</Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Ionicons name="save-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.btnSalvarText}>Salvar Treino Completo</Text>
+            </View>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -687,6 +719,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   addMaisBtn: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 5,
     paddingHorizontal: 12,
     borderRadius: 6,
@@ -717,6 +751,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   novoExercicioBtn: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 4,
   },
   novoExercicioText: {
@@ -735,7 +771,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   checkIcon: {
-    fontSize: 16,
     marginRight: 10,
   },
   exercicioNome: {
@@ -756,9 +791,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderStyle: "dashed",
   },
-  emptyCardsEmoji: {
-    fontSize: 36,
-    marginBottom: 8,
+  emptyCardsIconCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
   },
   emptyCardsTitle: {
     fontSize: 15,
@@ -871,6 +910,8 @@ const styles = StyleSheet.create({
     minWidth: 26,
   },
   btnSalvar: {
+    flexDirection: "row",
+    justifyContent: "center",
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: "center",

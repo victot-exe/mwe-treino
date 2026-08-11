@@ -9,6 +9,7 @@ import { getTreinoById, updateTreino } from "@/src/database/treinoRepository";
 import { AppDispatch } from "@/src/store";
 import { carregarTreinos } from "@/src/store/treinoSlice";
 import { Exercicio, ExercicioTreino, Treino } from "@/src/types";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -250,9 +251,12 @@ export default function TreinoScreen() {
           {!modoEdicao ? (
             <View style={styles.headerRow}>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.headerTitle, { color: colors.text }]}>
-                  🏋️ {treino.nome}
-                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                  <MaterialCommunityIcons name="dumbbell" size={24} color={colors.accent} />
+                  <Text style={[styles.headerTitle, { color: colors.text }]}>
+                    {treino.nome}
+                  </Text>
+                </View>
                 <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
                   {treino.exercicios?.length || 0} exercício(s) configurado(s)
                 </Text>
@@ -262,7 +266,8 @@ export default function TreinoScreen() {
                 style={[styles.btnEditar, { backgroundColor: colors.accent }]}
                 activeOpacity={0.8}
               >
-                <Text style={styles.btnEditarText}>✏️ Editar</Text>
+                <Ionicons name="create-outline" size={15} color="#fff" style={{ marginRight: 4 }} />
+                <Text style={styles.btnEditarText}>Editar</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -290,8 +295,9 @@ export default function TreinoScreen() {
                   disabled={salvando}
                   style={[styles.btnCancelar, { backgroundColor: colors.cardSecondary }]}
                 >
+                  <Ionicons name="close-outline" size={16} color={colors.text} style={{ marginRight: 4 }} />
                   <Text style={[styles.btnCancelarText, { color: colors.text }]}>
-                    ❌ Cancelar
+                    Cancelar
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -302,7 +308,10 @@ export default function TreinoScreen() {
                   {salvando ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <Text style={styles.btnSalvarText}>💾 Salvar</Text>
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <Ionicons name="save-outline" size={16} color="#fff" style={{ marginRight: 4 }} />
+                      <Text style={styles.btnSalvarText}>Salvar</Text>
+                    </View>
                   )}
                 </TouchableOpacity>
               </View>
@@ -362,9 +371,12 @@ export default function TreinoScreen() {
                         },
                       ]}
                     >
-                      <Text style={[styles.badgeLabel, { color: colors.textSecondary }]}>
-                        🔁 Séries
-                      </Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 3, marginBottom: 2 }}>
+                        <Ionicons name="repeat" size={11} color={colors.textSecondary} />
+                        <Text style={[styles.badgeLabel, { color: colors.textSecondary }]}>
+                          Séries
+                        </Text>
+                      </View>
                       <Text style={[styles.badgeValue, { color: colors.text }]}>
                         {item.series}x
                       </Text>
@@ -379,9 +391,12 @@ export default function TreinoScreen() {
                         },
                       ]}
                     >
-                      <Text style={[styles.badgeLabel, { color: colors.textSecondary }]}>
-                        🔢 Reps
-                      </Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 3, marginBottom: 2 }}>
+                        <Ionicons name="bar-chart-outline" size={11} color={colors.textSecondary} />
+                        <Text style={[styles.badgeLabel, { color: colors.textSecondary }]}>
+                          Reps
+                        </Text>
+                      </View>
                       <Text style={[styles.badgeValue, { color: colors.text }]}>
                         {item.repeticoes}
                       </Text>
@@ -396,9 +411,12 @@ export default function TreinoScreen() {
                         },
                       ]}
                     >
-                      <Text style={[styles.badgeLabel, { color: colors.textSecondary }]}>
-                        ⚖️ Carga
-                      </Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 3, marginBottom: 2 }}>
+                        <MaterialCommunityIcons name="weight-kilogram" size={12} color={colors.textSecondary} />
+                        <Text style={[styles.badgeLabel, { color: colors.textSecondary }]}>
+                          Carga
+                        </Text>
+                      </View>
                       <Text style={[styles.badgeValue, { color: colors.text }]}>
                         {item.carga || 0} kg
                       </Text>
@@ -413,9 +431,12 @@ export default function TreinoScreen() {
                         },
                       ]}
                     >
-                      <Text style={[styles.badgeLabel, { color: colors.textSecondary }]}>
-                        ⏱️ Descanso
-                      </Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 3, marginBottom: 2 }}>
+                        <Ionicons name="time-outline" size={11} color={colors.textSecondary} />
+                        <Text style={[styles.badgeLabel, { color: colors.textSecondary }]}>
+                          Descanso
+                        </Text>
+                      </View>
                       <Text style={[styles.badgeValue, { color: colors.text }]}>
                         {item.descanso}s
                       </Text>
@@ -448,7 +469,8 @@ export default function TreinoScreen() {
                   style={[styles.btnIniciarTreino, { backgroundColor: colors.primary }]}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.btnIniciarTreinoText}>🔥 Iniciar Treino</Text>
+                  <Ionicons name="play" size={18} color="#fff" style={{ marginRight: 6 }} />
+                  <Text style={styles.btnIniciarTreinoText}>Iniciar Treino</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -491,7 +513,7 @@ export default function TreinoScreen() {
                     onPress={() => removerExercicioDoTreino(index)}
                     style={styles.removerBtn}
                   >
-                    <Text style={styles.removerBtnText}>🗑️</Text>
+                    <Ionicons name="trash-outline" size={18} color={colors.danger} />
                   </TouchableOpacity>
                 </View>
 
@@ -716,8 +738,14 @@ export default function TreinoScreen() {
                 { backgroundColor: colors.accentLight, borderColor: colors.accent },
               ]}
             >
+              <Ionicons
+                name={mostrarCatalogo ? "chevron-up" : "add-circle-outline"}
+                size={18}
+                color={colors.accent}
+                style={{ marginRight: 6 }}
+              />
               <Text style={[styles.btnAddExercicioText, { color: colors.accent }]}>
-                {mostrarCatalogo ? "▲ Fechar Catálogo" : "➕ Adicionar Mais Exercícios"}
+                {mostrarCatalogo ? "Fechar Catálogo" : "Adicionar Mais Exercícios"}
               </Text>
             </TouchableOpacity>
 
@@ -729,7 +757,7 @@ export default function TreinoScreen() {
                 ]}
               >
                 <TextInput
-                  placeholder="🔍 Pesquisar no catálogo..."
+                  placeholder="Pesquisar no catálogo..."
                   placeholderTextColor={colors.textMuted}
                   value={pesquisa}
                   onChangeText={setPesquisa}
@@ -757,9 +785,12 @@ export default function TreinoScreen() {
                       ]}
                       disabled={jaNoTreino}
                     >
-                      <Text style={styles.catalogoItemIcon}>
-                        {jaNoTreino ? "✅" : "➕"}
-                      </Text>
+                      <Ionicons
+                        name={jaNoTreino ? "checkmark-circle" : "add-circle-outline"}
+                        size={22}
+                        color={jaNoTreino ? colors.success : colors.accent}
+                        style={{ marginRight: 10 }}
+                      />
                       <View style={{ flex: 1 }}>
                         <Text
                           style={[

@@ -41,3 +41,17 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Android builds & APKs
+*.apk
+*.aab
+*.apks
+*.idsig
+/build/
+android/app/build/
+
+# Editors & IDEs
+.vscode/
+.idea/
+*.swp
+*.swo

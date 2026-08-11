@@ -2,6 +2,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { AppDispatch } from "@/src/store";
 import { adicionarExercicio } from "@/src/store/exercicioSlice";
 import { Exercicio } from "@/src/types";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
@@ -113,7 +114,10 @@ export default function NovoExercicioScreen() {
           {salvando ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.btnSalvarText}>💾 Salvar Exercício</Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Ionicons name="save-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
+              <Text style={styles.btnSalvarText}>Salvar Exercício</Text>
+            </View>
           )}
         </TouchableOpacity>
       </View>
@@ -154,6 +158,8 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
   },
   btnSalvar: {
+    flexDirection: "row",
+    justifyContent: "center",
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
