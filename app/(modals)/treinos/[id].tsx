@@ -21,7 +21,7 @@ export default function TreinoScreen() {
     }
 
     carregarTreino();
-    alert(id);
+    // alert(id);
   }, [id]);
 
   if (loading) {
