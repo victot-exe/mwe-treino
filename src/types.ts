@@ -1,7 +1,21 @@
-export interface Exercicio{
-    id: number;
-    nome: string;
-    descricao?: string;
+export const GRUPOS_MUSCULARES = [
+  "Peitoral",
+  "Costas",
+  "Ombros",
+  "Bíceps",
+  "Tríceps",
+  "Pernas",
+  "Abdômen",
+  "Geral",
+] as const;
+
+export type GrupoMuscular = (typeof GRUPOS_MUSCULARES)[number];
+
+export interface Exercicio {
+  id: number;
+  nome: string;
+  descricao?: string;
+  grupo_muscular?: GrupoMuscular;
 }
 
 export interface Treino{

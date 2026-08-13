@@ -1,14 +1,15 @@
+import { useAlert } from "@/src/context/AlertContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { AppDispatch } from "@/src/store";
 import { adicionarExercicio } from "@/src/store/exercicioSlice";
-import { Exercicio } from "@/src/types";
+import { Exercicio, GRUPOS_MUSCULARES, GrupoMuscular } from "@/src/types";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Keyboard,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -20,14 +21,16 @@ import { useDispatch } from "react-redux";
 export default function NovoExercicioScreen() {
   const dispatch = useDispatch<AppDispatch>();
   const { colors } = useTheme();
+  const { showAlert } = useAlert();
 
   const [form, setForm] = useState<Omit<Exercicio, "id">>({
     nome: "",
     descricao: "",
+    grupo_muscular: "Peitoral",
   });
   const [salvando, setSalvando] = useState(false);
 
-  const handleChange = (campo: keyof Exercicio, valor: string) => {
+  const handleChange = (campo: keyof Exercicio, valor: any) => {
     setForm((prev) => ({
       ...prev,
       [campo]: valor,
@@ -38,26 +41,36 @@ export default function NovoExercicioScreen() {
     Keyboard.dismiss();
 
     if (!form.nome.trim()) {
-      Alert.alert("Atenção", "O exercício precisa ter um nome!");
+      showAlert("Atenção", "O exercício precisa ter um nome!", "warning");
       return;
     }
 
     setSalvando(true);
 
     try {
-      await dispatch(adicionarExercicio(form)).unwrap();
-      Alert.alert("Sucesso! 🎉", "Exercício cadastrado com sucesso!");
+      await dispatch(
+        adicionarExercicio({
+          nome: form.nome.trim(),
+          descricao: form.descricao?.trim() || undefined,
+          grupo_muscular: form.grupo_muscular || "Geral",
+        })
+      ).unwrap();
+      showAlert("Sucesso!", "Exercício cadastrado com sucesso!", "success");
       router.back();
     } catch (error) {
       console.error(error);
-      Alert.alert("Erro", "Erro ao salvar exercício.");
+      showAlert("Erro", "Erro ao salvar exercício.", "error");
     } finally {
       setSalvando(false);
     }
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={{ padding: 16 }}
+      keyboardShouldPersistTaps="handled"
+    >
       <View
         style={[
           styles.card,
@@ -80,7 +93,43 @@ export default function NovoExercicioScreen() {
           ]}
         />
 
-        <Text style={[styles.label, { color: colors.text }]}>
+        <Text style={[styles.label, { color: colors.text }]}>Grupo Muscular</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.gruposScroll}
+        >
+          {GRUPOS_MUSCULARES.map((g) => {
+            const ativo = form.grupo_muscular === g;
+            return (
+              <TouchableOpacity
+                key={g}
+                onPress={() => handleChange("grupo_muscular", g)}
+                style={[
+                  styles.grupoChip,
+                  {
+                    backgroundColor: ativo ? colors.primary : colors.cardSecondary,
+                    borderColor: ativo ? colors.primary : colors.cardBorder,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.grupoChipText,
+                    {
+                      color: ativo ? "#fff" : colors.textSecondary,
+                      fontWeight: ativo ? "bold" : "normal",
+                    },
+                  ]}
+                >
+                  {g}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        <Text style={[styles.label, { color: colors.text, marginTop: 12 }]}>
           Descrição ou Músculo Alvo (opcional)
         </Text>
         <TextInput
@@ -121,7 +170,7 @@ export default function NovoExercicioScreen() {
           )}
         </TouchableOpacity>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -152,6 +201,20 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 15,
     marginBottom: 16,
+  },
+  gruposScroll: {
+    gap: 8,
+    paddingVertical: 4,
+    marginBottom: 8,
+  },
+  grupoChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  grupoChipText: {
+    fontSize: 13,
   },
   textArea: {
     height: 85,

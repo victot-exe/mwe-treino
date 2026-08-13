@@ -1,3 +1,4 @@
+import { useAlert } from "@/src/context/AlertContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import {
   addExercicioTreino,
@@ -8,13 +9,12 @@ import { getExercicios } from "@/src/database/exercicioRepository";
 import { getTreinoById, updateTreino } from "@/src/database/treinoRepository";
 import { AppDispatch } from "@/src/store";
 import { carregarTreinos } from "@/src/store/treinoSlice";
-import { Exercicio, ExercicioTreino, Treino } from "@/src/types";
+import { Exercicio, ExercicioTreino, GRUPOS_MUSCULARES, Treino } from "@/src/types";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Keyboard,
   KeyboardAvoidingView,
@@ -31,6 +31,7 @@ import { useDispatch } from "react-redux";
 export default function TreinoScreen() {
   const dispatch = useDispatch<AppDispatch>();
   const { colors } = useTheme();
+  const { showAlert } = useAlert();
   const params = useLocalSearchParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
 
@@ -48,6 +49,7 @@ export default function TreinoScreen() {
   const [todosExercicios, setTodosExercicios] = useState<Exercicio[]>([]);
   const [mostrarCatalogo, setMostrarCatalogo] = useState(false);
   const [pesquisa, setPesquisa] = useState("");
+  const [filtroGrupoCatalogo, setFiltroGrupoCatalogo] = useState<string>("Todos");
 
   const carregarTreino = useCallback(async () => {
     if (!id) return;
@@ -56,7 +58,7 @@ export default function TreinoScreen() {
     setTreino(treinoDb);
     if (treinoDb) {
       setNomeEditado(treinoDb.nome);
-      setExerciciosEditados(treinoDb.exercicios || []);
+      setExerciciosEditados(treinoDb.exercicios ? [...treinoDb.exercicios] : []);
     }
     setLoading(false);
   }, [id]);
@@ -65,24 +67,27 @@ export default function TreinoScreen() {
     carregarTreino();
   }, [carregarTreino]);
 
-  const iniciarEdicao = async () => {
-    if (!treino) return;
-    setNomeEditado(treino.nome);
-    setExerciciosEditados(treino.exercicios ? [...treino.exercicios] : []);
-    setIdsParaExcluir([]);
-    setMostrarCatalogo(false);
+  // Carrega o catálogo caso queira adicionar novos exercícios
+  useEffect(() => {
+    if (modoEdicao) {
+      getExercicios().then((res) => setTodosExercicios(res));
+    }
+  }, [modoEdicao]);
 
-    // Carrega o catálogo caso queira adicionar novos exercícios
-    const listaEx = await getExercicios();
-    setTodosExercicios(listaEx);
-
+  const iniciarEdicao = () => {
+    if (treino) {
+      setNomeEditado(treino.nome);
+      setExerciciosEditados(treino.exercicios ? [...treino.exercicios] : []);
+      setIdsParaExcluir([]);
+    }
     setModoEdicao(true);
   };
 
   const cancelarEdicao = () => {
-    if (!treino) return;
-    setNomeEditado(treino.nome);
-    setExerciciosEditados(treino.exercicios ? [...treino.exercicios] : []);
+    if (treino) {
+      setNomeEditado(treino.nome);
+      setExerciciosEditados(treino.exercicios ? [...treino.exercicios] : []);
+    }
     setIdsParaExcluir([]);
     setMostrarCatalogo(false);
     setModoEdicao(false);
@@ -90,7 +95,7 @@ export default function TreinoScreen() {
 
   const atualizarCampoExercicio = (
     index: number,
-    campo: "series" | "repeticoes" | "carga" | "descanso",
+    campo: keyof ExercicioTreino,
     valorTexto: string
   ) => {
     const valorNum = valorTexto === "" ? 0 : parseInt(valorTexto, 10);
@@ -110,31 +115,36 @@ export default function TreinoScreen() {
     index: number,
     campo: "series" | "repeticoes" | "carga" | "descanso",
     delta: number,
-    minimo: number = 0
+    min: number = 0
   ) => {
-    setExerciciosEditados((prev) => {
-      const novaLista = [...prev];
-      const atual = Number(novaLista[index][campo]) || 0;
-      novaLista[index] = {
-        ...novaLista[index],
-        [campo]: Math.max(minimo, atual + delta),
-      };
-      return novaLista;
-    });
+    setExerciciosEditados((prev) =>
+      prev.map((item, i) => {
+        if (i === index) {
+          const atual = Number(item[campo]) || 0;
+          const novo = Math.max(min, atual + delta);
+          return {
+            ...item,
+            [campo]: novo,
+          };
+        }
+        return item;
+      })
+    );
   };
 
   const removerExercicioDoTreino = (index: number) => {
-    const item = exerciciosEditados[index];
-    if (item.id) {
-      setIdsParaExcluir((prev) => [...prev, item.id]);
+    const itemRemover = exerciciosEditados[index];
+    if (itemRemover && itemRemover.id && itemRemover.id > 0) {
+      setIdsParaExcluir((prev) => [...prev, itemRemover.id]);
     }
     setExerciciosEditados((prev) => prev.filter((_, i) => i !== index));
   };
 
   const adicionarExercicioAoTreinoLocal = (ex: Exercicio) => {
+    const treinoIdNum = Number(id);
     const novoItem: ExercicioTreino = {
       id: 0,
-      treino_id: Number(id),
+      treino_id: treinoIdNum,
       exercicio_id: ex.id,
       exercicio: ex,
       series: 4,
@@ -151,12 +161,12 @@ export default function TreinoScreen() {
     Keyboard.dismiss();
 
     if (!nomeEditado.trim()) {
-      Alert.alert("Atenção", "O nome do treino não pode ficar vazio!");
+      showAlert("Atenção", "O nome do treino não pode ficar vazio!", "warning");
       return;
     }
 
     if (exerciciosEditados.length === 0) {
-      Alert.alert("Atenção", "O treino precisa ter ao menos 1 exercício!");
+      showAlert("Atenção", "O treino precisa ter ao menos 1 exercício!", "warning");
       return;
     }
 
@@ -200,18 +210,26 @@ export default function TreinoScreen() {
       dispatch(carregarTreinos());
 
       setModoEdicao(false);
-      Alert.alert("Sucesso! 🎉", "Treino atualizado com sucesso!");
+      showAlert("Sucesso!", "Treino atualizado com sucesso!", "success");
     } catch (e) {
       console.error(e);
-      Alert.alert("Erro", "Erro ao salvar alterações no treino.");
+      showAlert("Erro", "Erro ao salvar alterações no treino.", "error");
     } finally {
       setSalvando(false);
     }
   };
 
-  const exerciciosFiltrados = todosExercicios.filter((ex) =>
-    ex.nome.toLowerCase().includes(pesquisa.toLowerCase())
-  );
+  const exerciciosFiltrados = todosExercicios.filter((ex) => {
+    const matchBusca =
+      pesquisa.trim() === "" ||
+      ex.nome.toLowerCase().includes(pesquisa.toLowerCase()) ||
+      (ex.descricao && ex.descricao.toLowerCase().includes(pesquisa.toLowerCase()));
+
+    if (!matchBusca) return false;
+    if (filtroGrupoCatalogo === "Todos") return true;
+
+    return (ex.grupo_muscular || "Geral") === filtroGrupoCatalogo;
+  });
 
   if (loading) {
     return (
@@ -757,7 +775,7 @@ export default function TreinoScreen() {
                 ]}
               >
                 <TextInput
-                  placeholder="Pesquisar no catálogo..."
+                  placeholder="Pesquisar exercício ou músculo..."
                   placeholderTextColor={colors.textMuted}
                   value={pesquisa}
                   onChangeText={setPesquisa}
@@ -770,6 +788,43 @@ export default function TreinoScreen() {
                     },
                   ]}
                 />
+
+                {/* Chips de Filtro por Grupo Muscular */}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 6, paddingVertical: 4, marginBottom: 8 }}
+                >
+                  {["Todos", ...GRUPOS_MUSCULARES].map((grupo) => {
+                    const ativo = filtroGrupoCatalogo === grupo;
+                    return (
+                      <TouchableOpacity
+                        key={grupo}
+                        onPress={() => setFiltroGrupoCatalogo(grupo)}
+                        style={[
+                          styles.chipFiltroCatalogo,
+                          {
+                            backgroundColor: ativo ? colors.primary : colors.cardSecondary,
+                            borderColor: ativo ? colors.primary : colors.cardBorder,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.chipFiltroCatalogoText,
+                            {
+                              color: ativo ? "#fff" : colors.textSecondary,
+                              fontWeight: ativo ? "bold" : "normal",
+                            },
+                          ]}
+                        >
+                          {grupo}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+
                 {exerciciosFiltrados.map((ex) => {
                   const jaNoTreino = exerciciosEditados.some(
                     (item) => item.exercicio_id === ex.id
@@ -792,15 +847,27 @@ export default function TreinoScreen() {
                         style={{ marginRight: 10 }}
                       />
                       <View style={{ flex: 1 }}>
-                        <Text
-                          style={[
-                            styles.catalogoItemNome,
-                            { color: colors.text },
-                            jaNoTreino && { color: colors.textMuted },
-                          ]}
-                        >
-                          {ex.nome}
-                        </Text>
+                        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+                          <Text
+                            style={[
+                              styles.catalogoItemNome,
+                              { color: colors.text },
+                              jaNoTreino && { color: colors.textMuted },
+                            ]}
+                          >
+                            {ex.nome}
+                          </Text>
+                          <View
+                            style={[
+                              styles.miniBadgeGrupo,
+                              { backgroundColor: colors.cardSecondary, borderColor: colors.cardBorder },
+                            ]}
+                          >
+                            <Text style={[styles.miniBadgeGrupoText, { color: colors.textSecondary }]}>
+                              {ex.grupo_muscular || "Geral"}
+                            </Text>
+                          </View>
+                        </View>
                         {ex.descricao ? (
                           <Text
                             style={[
@@ -1101,7 +1168,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     fontSize: 14,
-    marginBottom: 10,
+    marginBottom: 8,
+  },
+  chipFiltroCatalogo: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  chipFiltroCatalogoText: {
+    fontSize: 11,
+  },
+  miniBadgeGrupo: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 0.5,
+  },
+  miniBadgeGrupoText: {
+    fontSize: 9,
+    fontWeight: "bold",
+    textTransform: "uppercase",
   },
   catalogoItem: {
     flexDirection: "row",

@@ -1,7 +1,8 @@
 import {
-    addExercicio,
-    deleteExercicio,
-    getExercicios,
+  addExercicio,
+  deleteExercicio,
+  getExercicios,
+  updateExercicio,
 } from "@/src/database/exercicioRepository";
 import { Exercicio } from "@/src/types";
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
@@ -29,6 +30,14 @@ export const adicionarExercicio = createAsyncThunk(
   }
 );
 
+export const editarExercicio = createAsyncThunk(
+  "exercicios/editar",
+  async (exercicio: Exercicio) => {
+    await updateExercicio(exercicio);
+    return await getExercicios();
+  }
+);
+
 export const removerExercicio = createAsyncThunk(
   "exercicios/remover",
   async (id: number) => {
@@ -48,6 +57,9 @@ const exercicioSlice = createSlice({
         state.loading = false;
       })
       .addCase(adicionarExercicio.fulfilled, (state, action) => {
+        state.lista = action.payload;
+      })
+      .addCase(editarExercicio.fulfilled, (state, action) => {
         state.lista = action.payload;
       })
       .addCase(removerExercicio.fulfilled, (state, action) => {

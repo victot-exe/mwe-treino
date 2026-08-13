@@ -46,6 +46,15 @@ export default function DrawerLayout() {
         }}
       />
       <Drawer.Screen
+        name="exercicios/index"
+        options={{
+          title: "Exercícios",
+          drawerIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="format-list-bulleted" size={size || 22} color={color} />
+          ),
+        }}
+      />
+      <Drawer.Screen
         name="historico/index"
         options={{
           title: "Histórico",
