@@ -1,9 +1,21 @@
+import { useAlert } from "@/src/context/AlertContext";
 import { ThemeMode, useTheme } from "@/src/context/ThemeContext";
-import { Ionicons } from "@expo/vector-icons";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { resetarCatalogoPadrao } from "@/src/database/database";
+import { AppDispatch } from "@/src/store";
+import { carregarExercicios } from "@/src/store/exercicioSlice";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import Constants from "expo-constants";
+import React, { useState } from "react";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useDispatch } from "react-redux";
 
 export default function ConfiguracoesScreen() {
+  const dispatch = useDispatch<AppDispatch>();
   const { colors, themeMode, setThemeMode, isDark } = useTheme();
+  const { showAlert, showConfirm } = useAlert();
+  const [resetando, setResetando] = useState(false);
+
+  const versaoApp = Constants.expoConfig?.version || "1.1.0";
 
   const opcoesTema: {
     id: ThemeMode;
@@ -35,8 +47,37 @@ export default function ConfiguracoesScreen() {
     },
   ];
 
+  const handleRestaurarCatalogo = () => {
+    showConfirm(
+      "Restaurar Catálogo",
+      "Deseja limpar duplicidades e restaurar o catálogo oficial de 45 exercícios? Seus treinos criados não serão apagados.",
+      async () => {
+        setResetando(true);
+        try {
+          await resetarCatalogoPadrao();
+          await dispatch(carregarExercicios());
+          showAlert(
+            "Sucesso!",
+            "O catálogo foi restaurado e todas as duplicidades foram removidas com sucesso.",
+            "success"
+          );
+        } catch (error) {
+          console.error(error);
+          showAlert("Erro", "Não foi possível restaurar o catálogo.", "error");
+        } finally {
+          setResetando(false);
+        }
+      },
+      false,
+      "Restaurar"
+    );
+  };
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={styles.content}
+    >
       {/* Seção de Aparência */}
       <View style={styles.sectionHeader}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
@@ -98,6 +139,62 @@ export default function ConfiguracoesScreen() {
         })}
       </View>
 
+      {/* Seção de Gerenciamento de Dados */}
+      <View style={styles.sectionHeader}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
+          <MaterialCommunityIcons name="database-cog-outline" size={22} color={colors.primary} />
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Gerenciamento de Dados
+          </Text>
+        </View>
+        <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
+          Ações de manutenção do banco de dados local
+        </Text>
+      </View>
+
+      <View style={styles.optionsContainer}>
+        <TouchableOpacity
+          onPress={handleRestaurarCatalogo}
+          disabled={resetando}
+          activeOpacity={0.7}
+          style={[
+            styles.optionCard,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.cardBorder,
+              borderWidth: 1,
+            },
+          ]}
+        >
+          <View style={styles.optionRow}>
+            <View
+              style={[
+                styles.optionIconContainer,
+                { backgroundColor: colors.cardSecondary },
+              ]}
+            >
+              {resetando ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <MaterialCommunityIcons
+                  name="database-sync"
+                  size={22}
+                  color={colors.primary}
+                />
+              )}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.optionTitle, { color: colors.text }]}>
+                Restaurar Catálogo de Exercícios
+              </Text>
+              <Text style={[styles.optionDesc, { color: colors.textSecondary }]}>
+                Remove duplicidades e restaura os 45 exercícios oficiais organizados por grupo muscular.
+              </Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </View>
+
       {/* Card Informativo do App */}
       <View
         style={[
@@ -118,17 +215,20 @@ export default function ConfiguracoesScreen() {
           • Tema Atual: {isDark ? "Escuro (Dark Mode)" : "Claro (Light Mode)"}
         </Text>
         <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-          • Versão: 1.0.0
+          • Versão: {versaoApp}
         </Text>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  content: {
     padding: 16,
+    paddingBottom: 40,
   },
   sectionHeader: {
     marginBottom: 16,
@@ -204,3 +304,4 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
 });
+

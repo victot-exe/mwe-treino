@@ -2,7 +2,7 @@
   "expo": {
     "name": "mwe-treino",
     "slug": "mwe-treino",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "mwetreino",
@@ -13,6 +13,7 @@
     },
     "android": {
       "package": "com.victor.mwetreino",
+      "versionCode": 2,
       "adaptiveIcon": {
         "backgroundColor": "#0f172a",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
