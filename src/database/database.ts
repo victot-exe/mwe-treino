@@ -69,6 +69,13 @@ async function executeInitDatabase() {
       carga REAL NOT NULL,
       FOREIGN KEY (sessao_id) REFERENCES historico_sessoes(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS sessao_ativa_treino (
+      id INTEGER PRIMARY KEY DEFAULT 1,
+      treino_id INTEGER NOT NULL,
+      dados_json TEXT NOT NULL,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   // Migração segura para adicionar coluna 'ordem' caso o banco já exista

@@ -6,6 +6,11 @@ import {
   updateExercicioTreino,
 } from "@/src/database/exercicioTreinoRepository";
 import { getExercicios } from "@/src/database/exercicioRepository";
+import {
+  limparSessaoAtiva,
+  obterSessaoAtiva,
+  SessaoAtivaTreino,
+} from "@/src/database/sessaoAtivaRepository";
 import { getTreinoById, updateTreino } from "@/src/database/treinoRepository";
 import { AppDispatch } from "@/src/store";
 import { carregarTreinos } from "@/src/store/treinoSlice";
@@ -210,7 +215,7 @@ function CardExercicioEdicao({
 export default function TreinoScreen() {
   const dispatch = useDispatch<AppDispatch>();
   const { colors } = useTheme();
-  const { showAlert } = useAlert();
+  const { showAlert, showConfirm } = useAlert();
   const params = useLocalSearchParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
 
@@ -230,6 +235,7 @@ export default function TreinoScreen() {
   const [mostrarCatalogo, setMostrarCatalogo] = useState(false);
   const [pesquisa, setPesquisa] = useState("");
   const [filtroGrupoCatalogo, setFiltroGrupoCatalogo] = useState<string>("Todos");
+  const [sessaoAtiva, setSessaoAtiva] = useState<SessaoAtivaTreino | null>(null);
 
   const carregarTreino = useCallback(async () => {
     if (!id) return;
@@ -240,6 +246,8 @@ export default function TreinoScreen() {
       setNomeEditado(treinoDb.nome);
       setExerciciosEditados(treinoDb.exercicios ? [...treinoDb.exercicios] : []);
     }
+    const sessao = await obterSessaoAtiva();
+    setSessaoAtiva(sessao);
     setLoading(false);
   }, [id]);
 
@@ -646,7 +654,7 @@ export default function TreinoScreen() {
               }
             />
 
-            {/* BOTÃO FIXO INFERIOR: INICIAR TREINO */}
+            {/* BOTÃO FIXO INFERIOR: INICIAR / CONTINUAR TREINO */}
             {treino.exercicios && treino.exercicios.length > 0 && (
               <View
                 style={[
@@ -658,12 +666,53 @@ export default function TreinoScreen() {
                 ]}
               >
                 <TouchableOpacity
-                  onPress={() => router.push(`/(modals)/treinos/treinar/${id}`)}
-                  style={[styles.btnIniciarTreino, { backgroundColor: colors.primary }]}
+                  onPress={() => {
+                    if (sessaoAtiva && sessaoAtiva.treinoId === Number(id)) {
+                      // Continua direto a sessão ativa deste treino
+                      router.push(`/(modals)/treinos/treinar/${id}`);
+                    } else if (sessaoAtiva && sessaoAtiva.treinoId !== Number(id)) {
+                      // Avisa que já existe outro treino em andamento
+                      showConfirm(
+                        "Treino em Andamento",
+                        `Você já possui uma sessão em andamento de "${sessaoAtiva.nomeTreino}". Deseja descartá-la para iniciar este novo treino?`,
+                        async () => {
+                          await limparSessaoAtiva();
+                          router.push(`/(modals)/treinos/treinar/${id}`);
+                        },
+                        true,
+                        "Descartar Anterior e Iniciar",
+                        "Cancelar"
+                      );
+                    } else {
+                      router.push(`/(modals)/treinos/treinar/${id}`);
+                    }
+                  }}
+                  style={[
+                    styles.btnIniciarTreino,
+                    {
+                      backgroundColor:
+                        sessaoAtiva && sessaoAtiva.treinoId === Number(id)
+                          ? colors.accent
+                          : colors.primary,
+                    },
+                  ]}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="play" size={18} color="#fff" style={{ marginRight: 6 }} />
-                  <Text style={styles.btnIniciarTreinoText}>Iniciar Treino</Text>
+                  <Ionicons
+                    name={
+                      sessaoAtiva && sessaoAtiva.treinoId === Number(id)
+                        ? "flash"
+                        : "play"
+                    }
+                    size={18}
+                    color="#fff"
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text style={styles.btnIniciarTreinoText}>
+                    {sessaoAtiva && sessaoAtiva.treinoId === Number(id)
+                      ? "Continuar Treino em Andamento"
+                      : "Iniciar Treino"}
+                  </Text>
                 </TouchableOpacity>
               </View>
             )}

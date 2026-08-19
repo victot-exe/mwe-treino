@@ -5,6 +5,11 @@ import {
   updateExercicioTreino,
 } from "@/src/database/exercicioTreinoRepository";
 import { salvarSessaoTreino } from "@/src/database/historicoRepository";
+import {
+  limparSessaoAtiva,
+  obterSessaoAtiva,
+  salvarSessaoAtiva,
+} from "@/src/database/sessaoAtivaRepository";
 import { getTreinoById } from "@/src/database/treinoRepository";
 import {
   agendarNotificacaoDescanso,
@@ -229,7 +234,7 @@ export default function TreinarScreen() {
     }
   }, [modalEditarReps]);
 
-  // Carrega treino, solicita permissões e inicializa progresso
+  // Carrega treino, solicita permissões e inicializa ou restaura progresso
   const inicializarTreino = useCallback(async () => {
     if (!id) return;
     setLoading(true);
@@ -240,23 +245,82 @@ export default function TreinarScreen() {
     setTreino(treinoDb);
 
     if (treinoDb && treinoDb.exercicios && treinoDb.exercicios.length > 0) {
-      const mapaInicial: { [key: number]: ProgressoExercicio } = {};
-      treinoDb.exercicios.forEach((ex) => {
-        mapaInicial[ex.exercicio_id] = {
-          serieAtual: 1,
-          totalSeries: ex.series || 4,
-          concluido: false,
-          carga: ex.carga || 0,
-          repeticoes: ex.repeticoes || 10,
-        };
-      });
-      setProgresso(mapaInicial);
-      setExercicioAtivoIndex(0);
-      inicioTreinoTimestampRef.current = Date.now();
+      const treinoIdNum = Number(id);
+      const sessaoSalva = await obterSessaoAtiva();
+
+      if (
+        sessaoSalva &&
+        sessaoSalva.treinoId === treinoIdNum &&
+        sessaoSalva.progresso &&
+        Object.keys(sessaoSalva.progresso).length > 0
+      ) {
+        // Restaura progresso salvo da sessão ativa
+        setProgresso(sessaoSalva.progresso);
+        const idx =
+          sessaoSalva.exercicioAtivoIndex >= 0 &&
+          sessaoSalva.exercicioAtivoIndex < treinoDb.exercicios.length
+            ? sessaoSalva.exercicioAtivoIndex
+            : 0;
+        setExercicioAtivoIndex(idx);
+        inicioTreinoTimestampRef.current =
+          sessaoSalva.inicioTreinoTimestamp || Date.now();
+        const decorridoInicial = Math.floor(
+          (Date.now() - inicioTreinoTimestampRef.current) / 1000
+        );
+        setTempoDecorrido(Math.max(0, decorridoInicial));
+      } else {
+        // Inicializa nova sessão
+        const mapaInicial: { [key: number]: ProgressoExercicio } = {};
+        treinoDb.exercicios.forEach((ex) => {
+          mapaInicial[ex.exercicio_id] = {
+            serieAtual: 1,
+            totalSeries: ex.series || 4,
+            concluido: false,
+            carga: ex.carga || 0,
+            repeticoes: ex.repeticoes || 10,
+          };
+        });
+        setProgresso(mapaInicial);
+        setExercicioAtivoIndex(0);
+        inicioTreinoTimestampRef.current = Date.now();
+        setTempoDecorrido(0);
+
+        // Salva estado inicial ativo no SQLite
+        await salvarSessaoAtiva({
+          treinoId: treinoIdNum,
+          nomeTreino: treinoDb.nome,
+          exercicioAtivoIndex: 0,
+          inicioTreinoTimestamp: inicioTreinoTimestampRef.current,
+          tempoDecorridoSegundos: 0,
+          progresso: mapaInicial,
+          ultimaAtualizacao: Date.now(),
+        });
+      }
     }
 
     setLoading(false);
   }, [id]);
+
+  // Salva snapshot do treino temporário no SQLite
+  const persistirSessaoTemporaria = useCallback(
+    async (
+      novoProgresso: { [key: number]: ProgressoExercicio },
+      novoIndex?: number
+    ) => {
+      if (!treino || !id) return;
+      const idx = novoIndex !== undefined ? novoIndex : exercicioAtivoIndex;
+      await salvarSessaoAtiva({
+        treinoId: Number(id),
+        nomeTreino: treino.nome,
+        exercicioAtivoIndex: idx,
+        inicioTreinoTimestamp: inicioTreinoTimestampRef.current,
+        tempoDecorridoSegundos: tempoDecorrido,
+        progresso: novoProgresso,
+        ultimaAtualizacao: Date.now(),
+      });
+    },
+    [treino, id, exercicioAtivoIndex, tempoDecorrido]
+  );
 
   useEffect(() => {
     inicializarTreino();
@@ -405,6 +469,9 @@ export default function TreinarScreen() {
           total_exercicios: treino.exercicios?.length || 0,
           exercicios: exerciciosParaSalvar,
         });
+
+        // Limpa a sessão temporária ativa do SQLite
+        await limparSessaoAtiva();
       } catch (error) {
         console.error("Erro ao salvar histórico de treino:", error);
       }
@@ -423,39 +490,43 @@ export default function TreinarScreen() {
     const nomeEx = exercicioAtual.exercicio?.nome || "Exercício";
 
     if (estado.serieAtual < estado.totalSeries) {
-      setProgresso((prev) => ({
-        ...prev,
+      const novoProgresso = {
+        ...progresso,
         [exercicioAtual.exercicio_id]: {
-          ...prev[exercicioAtual.exercicio_id],
-          serieAtual: prev[exercicioAtual.exercicio_id].serieAtual + 1,
+          ...progresso[exercicioAtual.exercicio_id],
+          serieAtual: progresso[exercicioAtual.exercicio_id].serieAtual + 1,
         },
-      }));
+      };
+      setProgresso(novoProgresso);
+      persistirSessaoTemporaria(novoProgresso);
       iniciarDescanso(tempoDescanso, nomeEx);
     } else {
-      setProgresso((prev) => {
-        const novoProgresso = {
-          ...prev,
-          [exercicioAtual.exercicio_id]: {
-            ...prev[exercicioAtual.exercicio_id],
-            concluido: true,
-          },
-        };
+      const novoProgresso = {
+        ...progresso,
+        [exercicioAtual.exercicio_id]: {
+          ...progresso[exercicioAtual.exercicio_id],
+          concluido: true,
+        },
+      };
+      setProgresso(novoProgresso);
 
-        const todosConcluidos = Object.values(novoProgresso).every((p) => p.concluido);
-        if (todosConcluidos) {
-          finalizarESalvarTreino(novoProgresso);
-        } else {
-          iniciarDescanso(tempoDescanso, nomeEx);
-          const proximoIndex = treino?.exercicios?.findIndex(
-            (item) => !novoProgresso[item.exercicio_id]?.concluido
-          );
-          if (proximoIndex !== undefined && proximoIndex !== -1) {
-            setExercicioAtivoIndex(proximoIndex);
-          }
+      const todosConcluidos = Object.values(novoProgresso).every((p) => p.concluido);
+      if (todosConcluidos) {
+        finalizarESalvarTreino(novoProgresso);
+      } else {
+        iniciarDescanso(tempoDescanso, nomeEx);
+        const proximoIndex = treino?.exercicios?.findIndex(
+          (item) => !novoProgresso[item.exercicio_id]?.concluido
+        );
+        const idxFinal =
+          proximoIndex !== undefined && proximoIndex !== -1
+            ? proximoIndex
+            : exercicioAtivoIndex;
+        if (proximoIndex !== undefined && proximoIndex !== -1) {
+          setExercicioAtivoIndex(proximoIndex);
         }
-
-        return novoProgresso;
-      });
+        persistirSessaoTemporaria(novoProgresso, idxFinal);
+      }
     }
   };
 
@@ -476,6 +547,8 @@ export default function TreinarScreen() {
       const todosConcluidos = Object.values(novoProgresso).every((p) => p.concluido);
       if (todosConcluidos) {
         finalizarESalvarTreino(novoProgresso);
+      } else {
+        persistirSessaoTemporaria(novoProgresso);
       }
 
       return novoProgresso;
@@ -532,13 +605,16 @@ export default function TreinarScreen() {
     const valorNum = parseFloat(valorLimpo);
     const novaCarga = isNaN(valorNum) ? 0 : Math.max(0, valorNum);
 
-    setProgresso((prev) => ({
-      ...prev,
+    const novoProgresso = {
+      ...progresso,
       [exAtual.exercicio_id]: {
-        ...prev[exAtual.exercicio_id],
+        ...progresso[exAtual.exercicio_id],
         carga: novaCarga,
       },
-    }));
+    };
+
+    setProgresso(novoProgresso);
+    persistirSessaoTemporaria(novoProgresso);
 
     if (exAtual.id) {
       await updateExercicioTreino(exAtual.id, { carga: novaCarga });
@@ -566,13 +642,16 @@ export default function TreinarScreen() {
     const valorNum = parseInt(valorLimpo, 10);
     const novasReps = isNaN(valorNum) ? 1 : Math.max(1, valorNum);
 
-    setProgresso((prev) => ({
-      ...prev,
+    const novoProgresso = {
+      ...progresso,
       [exAtual.exercicio_id]: {
-        ...prev[exAtual.exercicio_id],
+        ...progresso[exAtual.exercicio_id],
         repeticoes: novasReps,
       },
-    }));
+    };
+
+    setProgresso(novoProgresso);
+    persistirSessaoTemporaria(novoProgresso);
 
     if (exAtual.id) {
       await updateExercicioTreino(exAtual.id, { repeticoes: novasReps });
@@ -665,15 +744,15 @@ export default function TreinarScreen() {
           <TouchableOpacity
             onPress={() => {
               showConfirm(
-                "Sair do Treino",
-                "Deseja voltar para a tela anterior?",
+                "Pausar e Sair",
+                "Seu treino continuará salvo para você retomar quando quiser.",
                 () => {
                   pularDescanso();
                   router.back();
                 },
                 false,
-                "Sair",
-                "Cancelar"
+                "Sair e Manter Salvo",
+                "Continuar Treinando"
               );
             }}
             style={[
