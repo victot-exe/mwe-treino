@@ -2,7 +2,7 @@ import {
   getConfiguracao,
   setConfiguracao,
 } from "@/src/database/configuracaoRepository";
-import { darkTheme, lightTheme, ThemeColors } from "@/src/theme/colors";
+import { themes, ThemeColors } from "@/src/theme/colors";
 import React, {
   createContext,
   useCallback,
@@ -12,7 +12,15 @@ import React, {
 } from "react";
 import { useColorScheme } from "react-native";
 
-export type ThemeMode = "dark" | "light" | "auto";
+export type ThemeMode =
+  | "dark"
+  | "dark_orange"
+  | "dark_emerald"
+  | "dark_volt"
+  | "dark_blue"
+  | "dark_violet"
+  | "light"
+  | "auto";
 
 interface ThemeContextData {
   themeMode: ThemeMode;
@@ -25,12 +33,22 @@ const ThemeContext = createContext<ThemeContextData>({} as ThemeContextData);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemColorScheme = useColorScheme();
-  const [themeMode, setThemeModeState] = useState<ThemeMode>("dark"); // Padrão: Modo Escuro
+  const [themeMode, setThemeModeState] = useState<ThemeMode>("dark_orange"); // Padrão: Energy Sunset
+
   // Carrega a preferência salva no banco SQLite
   useEffect(() => {
     async function carregarTemaSalvo() {
-      const salvo = await getConfiguracao("app_theme_mode", "dark");
-      if (salvo === "dark" || salvo === "light" || salvo === "auto") {
+      const salvo = (await getConfiguracao("app_theme_mode", "dark_orange")) as ThemeMode;
+      if (
+        salvo === "dark" ||
+        salvo === "dark_orange" ||
+        salvo === "dark_emerald" ||
+        salvo === "dark_volt" ||
+        salvo === "dark_blue" ||
+        salvo === "dark_violet" ||
+        salvo === "light" ||
+        salvo === "auto"
+      ) {
         setThemeModeState(salvo);
       }
     }
@@ -44,11 +62,22 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   // Determina se o modo visual final é escuro ou claro
   const isDark =
-    themeMode === "dark" ||
-    (themeMode === "auto" && systemColorScheme === "dark") ||
-    (themeMode === "auto" && !systemColorScheme);
+    themeMode !== "light" &&
+    (themeMode !== "auto" || systemColorScheme === "dark" || !systemColorScheme);
 
-  const colors = isDark ? darkTheme : lightTheme;
+  const getThemeColors = (): ThemeColors => {
+    if (themeMode === "auto") {
+      return systemColorScheme === "dark" || !systemColorScheme
+        ? themes.dark_orange
+        : themes.light;
+    }
+    if (themeMode === "dark") {
+      return themes.dark_orange;
+    }
+    return themes[themeMode] || themes.dark_orange;
+  };
+
+  const colors = getThemeColors();
 
   return (
     <ThemeContext.Provider
