@@ -1,10 +1,10 @@
+import { APP_VERSION } from "@/src/constants/appInfo";
 import { useAlert } from "@/src/context/AlertContext";
 import { ThemeMode, useTheme } from "@/src/context/ThemeContext";
 import { resetarCatalogoPadrao } from "@/src/database/database";
 import { AppDispatch } from "@/src/store";
 import { carregarExercicios } from "@/src/store/exercicioSlice";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import Constants from "expo-constants";
 import React, { useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useDispatch } from "react-redux";
@@ -15,7 +15,7 @@ export default function ConfiguracoesScreen() {
   const { showAlert, showConfirm } = useAlert();
   const [resetando, setResetando] = useState(false);
 
-  const versaoApp = Constants.expoConfig?.version || "1.1.0";
+  const versaoApp = APP_VERSION;
 
   const opcoesTema: {
     id: ThemeMode;
