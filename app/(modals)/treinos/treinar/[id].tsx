@@ -9,7 +9,7 @@ import {
   requestNotificationPermissions,
 } from "@/src/services/notificationService";
 import { ExercicioTreino, Treino } from "@/src/types";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -478,22 +478,6 @@ export default function TreinarScreen() {
               { backgroundColor: colors.card, borderColor: colors.cardBorder },
             ]}
           >
-            <View
-              style={[
-                styles.badgeExercicioIndex,
-                { backgroundColor: colors.accentLight },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.badgeExercicioIndexText,
-                  { color: colors.accent },
-                ]}
-              >
-                Exercício {exercicioAtivoIndex + 1} de {totalExercicios}
-              </Text>
-            </View>
-
             <Text style={[styles.nomeExercicio, { color: colors.text }]}>
               {exercicioAtual.exercicio?.nome}
             </Text>
@@ -1103,17 +1087,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
     marginBottom: 16,
-  },
-  badgeExercicioIndex: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    marginBottom: 8,
-  },
-  badgeExercicioIndexText: {
-    fontSize: 12,
-    fontWeight: "bold",
   },
   nomeExercicio: {
     fontSize: 22,
