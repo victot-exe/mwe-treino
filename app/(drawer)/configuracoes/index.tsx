@@ -22,27 +22,63 @@ export default function ConfiguracoesScreen() {
     titulo: string;
     icone: keyof typeof Ionicons.glyphMap;
     iconeColor: string;
+    badgeCor: string;
     desc: string;
   }[] = [
     {
-      id: "dark",
-      icone: "moon",
-      iconeColor: colors.accent,
-      titulo: "Modo Escuro",
-      desc: "Visual escuro premium, ideal para economizar bateria e conforto visual.",
+      id: "dark_orange",
+      icone: "flame",
+      iconeColor: "#f0643b",
+      badgeCor: "#f0643b",
+      titulo: "Energy Sunset (Laranja)",
+      desc: "Alto contraste esportivo com fundo preto carvão e botões em laranja suave.",
+    },
+    {
+      id: "dark_emerald",
+      icone: "leaf",
+      iconeColor: "#10b981",
+      badgeCor: "#10b981",
+      titulo: "Emerald Gym (Esmeralda)",
+      desc: "Verde esmeralda equilibrado com fundo preto azulado profundo.",
+    },
+    {
+      id: "dark_volt",
+      icone: "flash",
+      iconeColor: "#84cc16",
+      badgeCor: "#84cc16",
+      titulo: "Volt Cyber (Lima)",
+      desc: "Lima elétrico moderno com fundo preto minimalista de alto contraste.",
+    },
+    {
+      id: "dark_blue",
+      icone: "shield-checkmark",
+      iconeColor: "#3b82f6",
+      badgeCor: "#3b82f6",
+      titulo: "Royal Focus (Azul)",
+      desc: "Azul royal esportivo sóbrio, limpo e focado no seu treino.",
+    },
+    {
+      id: "dark_violet",
+      icone: "sparkles",
+      iconeColor: "#a855f7",
+      badgeCor: "#a855f7",
+      titulo: "Obsidian Violet (Roxo)",
+      desc: "Visual moderno com tons de violeta e lavanda sobre fundo grafite.",
     },
     {
       id: "light",
       icone: "sunny",
       iconeColor: "#eab308",
-      titulo: "Modo Claro",
-      desc: "Visual claro e contrastante para ambientes bem iluminados.",
+      badgeCor: "#eab308",
+      titulo: "Modo Claro (Light)",
+      desc: "Visual claro, limpo e contrastante para ambientes bem iluminados.",
     },
     {
       id: "auto",
       icone: "phone-portrait-outline",
       iconeColor: colors.primary,
-      titulo: "Automático",
+      badgeCor: colors.primary,
+      titulo: "Automático (Sistema)",
       desc: "Acompanha o tema configurado nas configurações do seu celular.",
     },
   ];
@@ -93,7 +129,9 @@ export default function ConfiguracoesScreen() {
 
       <View style={styles.optionsContainer}>
         {opcoesTema.map((opcao) => {
-          const selecionado = themeMode === opcao.id;
+          const selecionado =
+            themeMode === opcao.id ||
+            (themeMode === "dark" && opcao.id === "dark_orange");
 
           return (
             <TouchableOpacity
@@ -119,9 +157,19 @@ export default function ConfiguracoesScreen() {
                   <Ionicons name={opcao.icone} size={22} color={opcao.iconeColor} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.optionTitle, { color: colors.text }]}>
-                    {opcao.titulo}
-                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                    <Text style={[styles.optionTitle, { color: colors.text }]}>
+                      {opcao.titulo}
+                    </Text>
+                    <View
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: 4,
+                        backgroundColor: opcao.badgeCor,
+                      }}
+                    />
+                  </View>
                   <Text style={[styles.optionDesc, { color: colors.textSecondary }]}>
                     {opcao.desc}
                   </Text>
