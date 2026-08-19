@@ -62,7 +62,17 @@ function CardExercicioEdicao({
     >
       <View style={[styles.cardHeaderEdicao, { borderColor: colors.cardSecondary }]}>
         <View style={styles.cardTitleContainer}>
-          <Text style={[styles.cardIndexEdicao, { backgroundColor: colors.accent }]}>
+          <Text
+            style={[
+              styles.cardIndexEdicao,
+              {
+                backgroundColor: colors.accentLight,
+                color: colors.accent,
+                borderColor: colors.accent,
+                borderWidth: 1,
+              },
+            ]}
+          >
             {index + 1}
           </Text>
           <Text style={[styles.cardNomeEdicao, { color: colors.text }]}>
@@ -453,7 +463,7 @@ export default function TreinoScreen() {
             <View style={styles.headerRow}>
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                  <MaterialCommunityIcons name="dumbbell" size={24} color={colors.accent} />
+                  <MaterialCommunityIcons name="dumbbell" size={24} color={colors.primary} />
                   <Text style={[styles.headerTitle, { color: colors.text }]}>
                     {treino.nome}
                   </Text>
@@ -464,11 +474,18 @@ export default function TreinoScreen() {
               </View>
               <TouchableOpacity
                 onPress={iniciarEdicao}
-                style={[styles.btnEditar, { backgroundColor: colors.accent }]}
+                style={[
+                  styles.btnEditar,
+                  {
+                    backgroundColor: colors.cardSecondary,
+                    borderColor: colors.cardBorder,
+                    borderWidth: 1,
+                  },
+                ]}
                 activeOpacity={0.8}
               >
-                <Ionicons name="create-outline" size={15} color="#fff" style={{ marginRight: 4 }} />
-                <Text style={styles.btnEditarText}>Editar</Text>
+                <Ionicons name="create-outline" size={15} color={colors.accent} style={{ marginRight: 4 }} />
+                <Text style={[styles.btnEditarText, { color: colors.text }]}>Editar</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -539,7 +556,12 @@ export default function TreinoScreen() {
                     <Text
                       style={[
                         styles.exerciseIndex,
-                        { backgroundColor: colors.primary },
+                        {
+                          backgroundColor: colors.accentLight,
+                          color: colors.accent,
+                          borderColor: colors.accent,
+                          borderWidth: 1,
+                        },
                       ]}
                     >
                       {index + 1}

@@ -60,7 +60,17 @@ function CardExercicioSelecionado({
       {/* Cabeçalho do Card */}
       <View style={[styles.cardHeader, { borderColor: colors.cardSecondary }]}>
         <View style={styles.cardTitleContainer}>
-          <Text style={[styles.cardIndex, { backgroundColor: colors.accent }]}>
+          <Text
+            style={[
+              styles.cardIndex,
+              {
+                backgroundColor: colors.accentLight,
+                color: colors.accent,
+                borderColor: colors.accent,
+                borderWidth: 1,
+              },
+            ]}
+          >
             {index + 1}
           </Text>
           <View style={{ flex: 1 }}>

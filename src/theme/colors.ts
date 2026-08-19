@@ -31,35 +31,35 @@ export interface ThemeColors {
 }
 
 export const darkTheme: ThemeColors = {
-  background: "#0f172a", // Slate 900
-  backgroundSecondary: "#1e293b", // Slate 800
-  card: "#1e293b",
-  cardSecondary: "#334155",
-  cardBorder: "#334155",
-  text: "#f8fafc",
-  textSecondary: "#94a3b8",
-  textMuted: "#64748b",
-  primary: "#00b894", // Esmeralda vibrante
-  primaryDark: "#00a383",
-  accent: "#38bdf8", // Sky blue esportivo
-  accentLight: "rgba(56, 189, 248, 0.15)",
+  background: "#090d16", // Preto azulado profundo estilo OLED premium
+  backgroundSecondary: "#111827", // Superfície de transição
+  card: "#131c2e", // Superfície de card elevada e nítida
+  cardSecondary: "#1e293b", // Superfície interna / badges secundárias
+  cardBorder: "rgba(255, 255, 255, 0.08)", // Borda translúcida moderna
+  text: "#ffffff", // Branco puro para títulos com máximo contraste
+  textSecondary: "#94a3b8", // Texto de apoio legível e suave
+  textMuted: "#64748b", // Detalhes discretos
+  primary: "#10b981", // Esmeralda esportivo equilibrado e confortável (sem ofuscar)
+  primaryDark: "#059669",
+  accent: "#38bdf8", // Sky Blue vibrante (destaques, timer, badges de ordem)
+  accentLight: "rgba(56, 189, 248, 0.12)",
   danger: "#ef4444",
   dangerLight: "rgba(239, 68, 68, 0.15)",
-  success: "#10b981",
-  successLight: "rgba(16, 185, 129, 0.15)",
+  success: "#22c55e", // Verde vibrante exclusivo para checks e séries concluídas
+  successLight: "rgba(34, 197, 94, 0.15)",
   warning: "#f59e0b",
   warningLight: "rgba(245, 158, 11, 0.15)",
-  inputBg: "#0f172a",
-  inputBorder: "#334155",
-  divider: "#1e293b",
-  headerBg: "#090d16",
+  inputBg: "#0f172a", // Inputs escuros bem delimitados
+  inputBorder: "#2d3748",
+  divider: "rgba(255, 255, 255, 0.06)",
+  headerBg: "#070a10", // Cabeçalho ultra dark clean
   headerText: "#ffffff",
-  tabBarBg: "#090d16",
+  tabBarBg: "#070a10",
   badgeBg: "#1e293b",
   stepperBg: "#0f172a",
   stepperBtn: "#334155",
-  stepperText: "#f8fafc",
-  backdrop: "rgba(0, 0, 0, 0.75)",
+  stepperText: "#ffffff",
+  backdrop: "rgba(0, 0, 0, 0.8)",
 };
 
 export const lightTheme: ThemeColors = {

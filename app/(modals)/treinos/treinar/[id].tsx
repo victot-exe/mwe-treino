@@ -805,7 +805,7 @@ export default function TreinarScreen() {
                       style={[
                         styles.serieDot,
                         { backgroundColor: colors.inputBg },
-                        feito && { backgroundColor: colors.primary },
+                        feito && { backgroundColor: colors.success },
                         atual && {
                           backgroundColor: colors.accent,
                           borderWidth: 2,
