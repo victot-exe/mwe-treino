@@ -10,6 +10,7 @@ function mapRowToExercicioTreino(row: any): ExercicioTreino {
     series: row.series,
     descanso: row.descanso,
     carga: row.carga,
+    ordem: row.ordem ?? 0,
 
     exercicio: {
       id: row["exercicio.id"] ?? row.exercicio_id,
@@ -35,13 +36,14 @@ export async function getExerciciosDoTreino(
       et.series,
       et.descanso,
       et.carga,
+      et.ordem,
       e.id AS 'exercicio.id',
       e.nome AS 'exercicio.nome',
       e.descricao AS 'exercicio.descricao'
     FROM exercicio_treino et
     JOIN exercicios e ON et.exercicio_id = e.id
     WHERE et.treino_id = ?
-    ORDER BY et.id;
+    ORDER BY et.ordem ASC, et.id ASC;
     `,
     [treinoId]
   );
@@ -62,6 +64,7 @@ export async function getExercicioTreinoById(
       et.series,
       et.descanso,
       et.carga,
+      et.ordem,
       e.id AS 'exercicio.id',
       e.nome AS 'exercicio.nome',
       e.descricao AS 'exercicio.descricao'
@@ -82,6 +85,7 @@ export async function addExercicioTreino(data: {
   series: number;
   descanso: number;
   carga: number;
+  ordem?: number;
 }): Promise<number> {
   const res = await db.runAsync(
     `
@@ -91,9 +95,10 @@ export async function addExercicioTreino(data: {
       repeticoes,
       series,
       descanso,
-      carga
+      carga,
+      ordem
     )
-    VALUES (?, ?, ?, ?, ?, ?);
+    VALUES (?, ?, ?, ?, ?, ?, ?);
     `,
     [
       data.treinoId,
@@ -102,6 +107,7 @@ export async function addExercicioTreino(data: {
       data.series,
       data.descanso,
       data.carga,
+      data.ordem ?? 0,
     ]
   );
 
@@ -115,6 +121,7 @@ export async function updateExercicioTreino(
     series?: number;
     descanso?: number;
     carga?: number;
+    ordem?: number;
     exercicioId?: number;
     treinoId?: number;
   }
@@ -138,6 +145,10 @@ export async function updateExercicioTreino(
     sets.push("carga = ?");
     params.push(data.carga);
   }
+  if (typeof data.ordem === "number") {
+    sets.push("ordem = ?");
+    params.push(data.ordem);
+  }
   if (typeof data.exercicioId === "number") {
     sets.push("exercicio_id = ?");
     params.push(data.exercicioId);
@@ -155,6 +166,19 @@ export async function updateExercicioTreino(
   await db.runAsync(sql, params);
 }
 
+export async function atualizarOrdemExercicios(
+  itens: { id: number; ordem: number }[]
+): Promise<void> {
+  if (!itens || itens.length === 0) return;
+  await db.withTransactionAsync(async () => {
+    for (const item of itens) {
+      await db.runAsync(
+        `UPDATE exercicio_treino SET ordem = ? WHERE id = ?;`,
+        [item.ordem, item.id]
+      );
+    }
+  });
+}
 
 export async function removeExercicioDoTreino(
   treinoId: number,

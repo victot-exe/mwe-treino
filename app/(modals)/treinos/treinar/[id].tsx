@@ -1,7 +1,15 @@
 import { useAlert } from "@/src/context/AlertContext";
 import { useTheme } from "@/src/context/ThemeContext";
-import { updateExercicioTreino } from "@/src/database/exercicioTreinoRepository";
+import {
+  atualizarOrdemExercicios,
+  updateExercicioTreino,
+} from "@/src/database/exercicioTreinoRepository";
 import { salvarSessaoTreino } from "@/src/database/historicoRepository";
+import {
+  limparSessaoAtiva,
+  obterSessaoAtiva,
+  salvarSessaoAtiva,
+} from "@/src/database/sessaoAtivaRepository";
 import { getTreinoById } from "@/src/database/treinoRepository";
 import {
   agendarNotificacaoDescanso,
@@ -9,7 +17,7 @@ import {
   requestNotificationPermissions,
 } from "@/src/services/notificationService";
 import { ExercicioTreino, Treino } from "@/src/types";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -19,6 +27,7 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Modal,
+  PanResponder,
   Platform,
   ScrollView,
   StyleSheet,
@@ -30,12 +39,136 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-
 interface ProgressoExercicio {
   serieAtual: number;
   totalSeries: number;
   concluido: boolean;
   carga: number;
+  repeticoes?: number;
+}
+
+interface DrawerExercicioItemProps {
+  item: ExercicioTreino;
+  index: number;
+  total: number;
+  colors: any;
+  isAtivo: boolean;
+  est: ProgressoExercicio;
+  onSelect: (index: number) => void;
+  onToggleConcluido: (exercicioId: number) => void;
+  onMove: (from: number, to: number) => void;
+}
+
+function DrawerExercicioItem({
+  item,
+  index,
+  total,
+  colors,
+  isAtivo,
+  est,
+  onSelect,
+  onToggleConcluido,
+  onMove,
+}: DrawerExercicioItemProps) {
+  return (
+    <View
+      style={[
+        styles.drawerItem,
+        {
+          backgroundColor: colors.card,
+          borderColor: colors.cardBorder,
+        },
+        isAtivo && {
+          borderColor: colors.accent,
+          backgroundColor: colors.accentLight,
+        },
+        est?.concluido && {
+          backgroundColor: colors.successLight,
+          borderColor: colors.success,
+        },
+      ]}
+    >
+      {/* Checkbox direta */}
+      <TouchableOpacity
+        onPress={() => onToggleConcluido(item.exercicio_id)}
+        style={styles.checkboxTouch}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        <Ionicons
+          name={est?.concluido ? "checkmark-circle" : "ellipse-outline"}
+          size={24}
+          color={est?.concluido ? colors.success : colors.textMuted}
+        />
+      </TouchableOpacity>
+
+      {/* Toque no Nome muda para este exercício */}
+      <TouchableOpacity
+        onPress={() => onSelect(index)}
+        style={{ flex: 1 }}
+      >
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Text
+            style={[
+              styles.drawerItemNome,
+              { color: colors.text },
+              est?.concluido && {
+                textDecorationLine: "line-through",
+                color: colors.textMuted,
+              },
+              isAtivo && { color: colors.accent },
+            ]}
+            numberOfLines={1}
+          >
+            {item.exercicio?.nome}
+          </Text>
+          {isAtivo && (
+            <View
+              style={[
+                styles.badgeAtual,
+                { backgroundColor: colors.accent },
+              ]}
+            >
+              <Text style={styles.badgeAtualText}>Atual</Text>
+            </View>
+          )}
+        </View>
+        <Text
+          style={[
+            styles.drawerItemStatus,
+            { color: colors.textSecondary },
+          ]}
+        >
+          {est?.serieAtual ?? 1}/{est?.totalSeries ?? item.series ?? 4} séries • {est?.carga ?? item.carga ?? 0} kg
+        </Text>
+      </TouchableOpacity>
+
+      {/* Controles de Reordenação */}
+      <View style={styles.drawerItemActions}>
+        <TouchableOpacity
+          onPress={() => onMove(index, index - 1)}
+          disabled={index === 0}
+          style={[
+            styles.btnDrawerOrdem,
+            index === 0 && { opacity: 0.2 },
+          ]}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        >
+          <Ionicons name="chevron-up" size={16} color={colors.textSecondary} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => onMove(index, index + 1)}
+          disabled={index === total - 1}
+          style={[
+            styles.btnDrawerOrdem,
+            index === total - 1 && { opacity: 0.2 },
+          ]}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        >
+          <Ionicons name="chevron-down" size={16} color={colors.textSecondary} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 }
 
 export default function TreinarScreen() {
@@ -68,6 +201,7 @@ export default function TreinarScreen() {
 
   // Menu Lateral Retrátil (Checklist)
   const [menuLateralAberto, setMenuLateralAberto] = useState(false);
+  const [drawerScrollHabilitado, setDrawerScrollHabilitado] = useState(true);
 
   // Modal de Celebração de Treino Concluído
   const [treinoFinalizadoModal, setTreinoFinalizadoModal] = useState(false);
@@ -75,8 +209,32 @@ export default function TreinarScreen() {
   // Modal de Edição Manual de Carga
   const [modalEditarCarga, setModalEditarCarga] = useState(false);
   const [inputCargaTexto, setInputCargaTexto] = useState("");
+  const inputCargaRef = useRef<TextInput | null>(null);
 
-  // Carrega treino, solicita permissões e inicializa progresso
+  useEffect(() => {
+    if (modalEditarCarga) {
+      const timer = setTimeout(() => {
+        inputCargaRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [modalEditarCarga]);
+
+  // Modal de Edição Manual de Repetições
+  const [modalEditarReps, setModalEditarReps] = useState(false);
+  const [inputRepsTexto, setInputRepsTexto] = useState("");
+  const inputRepsRef = useRef<TextInput | null>(null);
+
+  useEffect(() => {
+    if (modalEditarReps) {
+      const timer = setTimeout(() => {
+        inputRepsRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [modalEditarReps]);
+
+  // Carrega treino, solicita permissões e inicializa ou restaura progresso
   const inicializarTreino = useCallback(async () => {
     if (!id) return;
     setLoading(true);
@@ -87,22 +245,82 @@ export default function TreinarScreen() {
     setTreino(treinoDb);
 
     if (treinoDb && treinoDb.exercicios && treinoDb.exercicios.length > 0) {
-      const mapaInicial: { [key: number]: ProgressoExercicio } = {};
-      treinoDb.exercicios.forEach((ex) => {
-        mapaInicial[ex.exercicio_id] = {
-          serieAtual: 1,
-          totalSeries: ex.series || 4,
-          concluido: false,
-          carga: ex.carga || 0,
-        };
-      });
-      setProgresso(mapaInicial);
-      setExercicioAtivoIndex(0);
-      inicioTreinoTimestampRef.current = Date.now();
+      const treinoIdNum = Number(id);
+      const sessaoSalva = await obterSessaoAtiva();
+
+      if (
+        sessaoSalva &&
+        sessaoSalva.treinoId === treinoIdNum &&
+        sessaoSalva.progresso &&
+        Object.keys(sessaoSalva.progresso).length > 0
+      ) {
+        // Restaura progresso salvo da sessão ativa
+        setProgresso(sessaoSalva.progresso);
+        const idx =
+          sessaoSalva.exercicioAtivoIndex >= 0 &&
+          sessaoSalva.exercicioAtivoIndex < treinoDb.exercicios.length
+            ? sessaoSalva.exercicioAtivoIndex
+            : 0;
+        setExercicioAtivoIndex(idx);
+        inicioTreinoTimestampRef.current =
+          sessaoSalva.inicioTreinoTimestamp || Date.now();
+        const decorridoInicial = Math.floor(
+          (Date.now() - inicioTreinoTimestampRef.current) / 1000
+        );
+        setTempoDecorrido(Math.max(0, decorridoInicial));
+      } else {
+        // Inicializa nova sessão
+        const mapaInicial: { [key: number]: ProgressoExercicio } = {};
+        treinoDb.exercicios.forEach((ex) => {
+          mapaInicial[ex.exercicio_id] = {
+            serieAtual: 1,
+            totalSeries: ex.series || 4,
+            concluido: false,
+            carga: ex.carga || 0,
+            repeticoes: ex.repeticoes || 10,
+          };
+        });
+        setProgresso(mapaInicial);
+        setExercicioAtivoIndex(0);
+        inicioTreinoTimestampRef.current = Date.now();
+        setTempoDecorrido(0);
+
+        // Salva estado inicial ativo no SQLite
+        await salvarSessaoAtiva({
+          treinoId: treinoIdNum,
+          nomeTreino: treinoDb.nome,
+          exercicioAtivoIndex: 0,
+          inicioTreinoTimestamp: inicioTreinoTimestampRef.current,
+          tempoDecorridoSegundos: 0,
+          progresso: mapaInicial,
+          ultimaAtualizacao: Date.now(),
+        });
+      }
     }
 
     setLoading(false);
   }, [id]);
+
+  // Salva snapshot do treino temporário no SQLite
+  const persistirSessaoTemporaria = useCallback(
+    async (
+      novoProgresso: { [key: number]: ProgressoExercicio },
+      novoIndex?: number
+    ) => {
+      if (!treino || !id) return;
+      const idx = novoIndex !== undefined ? novoIndex : exercicioAtivoIndex;
+      await salvarSessaoAtiva({
+        treinoId: Number(id),
+        nomeTreino: treino.nome,
+        exercicioAtivoIndex: idx,
+        inicioTreinoTimestamp: inicioTreinoTimestampRef.current,
+        tempoDecorridoSegundos: tempoDecorrido,
+        progresso: novoProgresso,
+        ultimaAtualizacao: Date.now(),
+      });
+    },
+    [treino, id, exercicioAtivoIndex, tempoDecorrido]
+  );
 
   useEffect(() => {
     inicializarTreino();
@@ -115,16 +333,11 @@ export default function TreinarScreen() {
 
     if (fimDescansoTimestampRef.current !== null) {
       const restanteMs = fimDescansoTimestampRef.current - Date.now();
-      const restanteSeg = Math.ceil(restanteMs / 1000);
+      const restanteSeg = restanteMs >= 0
+        ? Math.ceil(restanteMs / 1000)
+        : Math.floor(restanteMs / 1000);
 
-      if (restanteSeg <= 0) {
-        fimDescansoTimestampRef.current = null;
-        setDescansoAtivo(false);
-        setTempoRestanteDescanso(0);
-        notificationIdRef.current = null;
-      } else {
-        setTempoRestanteDescanso(restanteSeg);
-      }
+      setTempoRestanteDescanso(restanteSeg);
     }
   }, []);
 
@@ -169,6 +382,16 @@ export default function TreinarScreen() {
     return `${min.toString().padStart(2, "0")}:${seg.toString().padStart(2, "0")}`;
   };
 
+  // Formatação de Tempo de Descanso (suporta contagem regressiva e contagem negativa de tempo excedente)
+  const formatarTempoDescanso = (segundos: number) => {
+    const isNegativo = segundos < 0;
+    const totalSegundos = Math.abs(segundos);
+    const min = Math.floor(totalSegundos / 60);
+    const seg = totalSegundos % 60;
+    const formatado = `${min.toString().padStart(2, "0")}:${seg.toString().padStart(2, "0")}`;
+    return isNegativo ? `-${formatado}` : formatado;
+  };
+
   // Iniciar Cronômetro de Descanso
   const iniciarDescanso = async (segundos: number, nomeExercicio: string) => {
     if (notificationIdRef.current) {
@@ -197,20 +420,14 @@ export default function TreinarScreen() {
 
   // Adicionar +15s ao descanso
   const adicionarTempoDescanso = async (segundosAdicionais: number = 15) => {
-    if (fimDescansoTimestampRef.current) {
-      fimDescansoTimestampRef.current += segundosAdicionais * 1000;
-      const novoTempo = tempoRestanteDescanso + segundosAdicionais;
-      setTempoRestanteDescanso(novoTempo);
-
-      if (notificationIdRef.current) {
-        await cancelarNotificacaoDescanso(notificationIdRef.current);
+    if (fimDescansoTimestampRef.current !== null) {
+      if (fimDescansoTimestampRef.current < Date.now()) {
+        fimDescansoTimestampRef.current = Date.now() + segundosAdicionais * 1000;
+      } else {
+        fimDescansoTimestampRef.current += segundosAdicionais * 1000;
       }
-      const exAtual = treino?.exercicios?.[exercicioAtivoIndex];
-      const notifId = await agendarNotificacaoDescanso(
-        novoTempo,
-        exAtual?.exercicio?.nome || "Próximo Exercício"
-      );
-      notificationIdRef.current = notifId;
+      const restanteMs = fimDescansoTimestampRef.current - Date.now();
+      setTempoRestanteDescanso(Math.ceil(restanteMs / 1000));
     }
   };
 
@@ -252,6 +469,9 @@ export default function TreinarScreen() {
           total_exercicios: treino.exercicios?.length || 0,
           exercicios: exerciciosParaSalvar,
         });
+
+        // Limpa a sessão temporária ativa do SQLite
+        await limparSessaoAtiva();
       } catch (error) {
         console.error("Erro ao salvar histórico de treino:", error);
       }
@@ -270,39 +490,43 @@ export default function TreinarScreen() {
     const nomeEx = exercicioAtual.exercicio?.nome || "Exercício";
 
     if (estado.serieAtual < estado.totalSeries) {
-      setProgresso((prev) => ({
-        ...prev,
+      const novoProgresso = {
+        ...progresso,
         [exercicioAtual.exercicio_id]: {
-          ...prev[exercicioAtual.exercicio_id],
-          serieAtual: prev[exercicioAtual.exercicio_id].serieAtual + 1,
+          ...progresso[exercicioAtual.exercicio_id],
+          serieAtual: progresso[exercicioAtual.exercicio_id].serieAtual + 1,
         },
-      }));
+      };
+      setProgresso(novoProgresso);
+      persistirSessaoTemporaria(novoProgresso);
       iniciarDescanso(tempoDescanso, nomeEx);
     } else {
-      setProgresso((prev) => {
-        const novoProgresso = {
-          ...prev,
-          [exercicioAtual.exercicio_id]: {
-            ...prev[exercicioAtual.exercicio_id],
-            concluido: true,
-          },
-        };
+      const novoProgresso = {
+        ...progresso,
+        [exercicioAtual.exercicio_id]: {
+          ...progresso[exercicioAtual.exercicio_id],
+          concluido: true,
+        },
+      };
+      setProgresso(novoProgresso);
 
-        const todosConcluidos = Object.values(novoProgresso).every((p) => p.concluido);
-        if (todosConcluidos) {
-          finalizarESalvarTreino(novoProgresso);
-        } else {
-          iniciarDescanso(tempoDescanso, nomeEx);
-          const proximoIndex = treino?.exercicios?.findIndex(
-            (item) => !novoProgresso[item.exercicio_id]?.concluido
-          );
-          if (proximoIndex !== undefined && proximoIndex !== -1) {
-            setExercicioAtivoIndex(proximoIndex);
-          }
+      const todosConcluidos = Object.values(novoProgresso).every((p) => p.concluido);
+      if (todosConcluidos) {
+        finalizarESalvarTreino(novoProgresso);
+      } else {
+        iniciarDescanso(tempoDescanso, nomeEx);
+        const proximoIndex = treino?.exercicios?.findIndex(
+          (item) => !novoProgresso[item.exercicio_id]?.concluido
+        );
+        const idxFinal =
+          proximoIndex !== undefined && proximoIndex !== -1
+            ? proximoIndex
+            : exercicioAtivoIndex;
+        if (proximoIndex !== undefined && proximoIndex !== -1) {
+          setExercicioAtivoIndex(proximoIndex);
         }
-
-        return novoProgresso;
-      });
+        persistirSessaoTemporaria(novoProgresso, idxFinal);
+      }
     }
   };
 
@@ -323,10 +547,44 @@ export default function TreinarScreen() {
       const todosConcluidos = Object.values(novoProgresso).every((p) => p.concluido);
       if (todosConcluidos) {
         finalizarESalvarTreino(novoProgresso);
+      } else {
+        persistirSessaoTemporaria(novoProgresso);
       }
 
       return novoProgresso;
     });
+  };
+
+  // Mover exercício na lista durante o treino e sincronizar no banco
+  const moverExercicioNaExecucao = async (fromIndex: number, toIndex: number) => {
+    if (!treino || !treino.exercicios) return;
+    if (toIndex < 0 || toIndex >= treino.exercicios.length) return;
+
+    const exercicioAtivoId = treino.exercicios[exercicioAtivoIndex]?.exercicio_id;
+    const novaLista = [...treino.exercicios];
+    const [itemMovido] = novaLista.splice(fromIndex, 1);
+    novaLista.splice(toIndex, 0, itemMovido);
+
+    const novaListaComOrdem = novaLista.map((item, idx) => ({ ...item, ordem: idx }));
+
+    // Mantém o exercício ativo sincronizado com a nova posição
+    const novoIndexAtivo = novaListaComOrdem.findIndex(
+      (item) => item.exercicio_id === exercicioAtivoId
+    );
+    if (novoIndexAtivo !== -1) {
+      setExercicioAtivoIndex(novoIndexAtivo);
+    }
+
+    setTreino((prev) => (prev ? { ...prev, exercicios: novaListaComOrdem } : prev));
+
+    // Salva a nova sequência de ordens no SQLite
+    const itensParaAtualizar = novaListaComOrdem
+      .filter((item) => item.id && item.id > 0)
+      .map((item, idx) => ({ id: item.id, ordem: idx }));
+
+    if (itensParaAtualizar.length > 0) {
+      await atualizarOrdemExercicios(itensParaAtualizar);
+    }
   };
 
   // Abrir modal de edição manual de carga
@@ -347,13 +605,16 @@ export default function TreinarScreen() {
     const valorNum = parseFloat(valorLimpo);
     const novaCarga = isNaN(valorNum) ? 0 : Math.max(0, valorNum);
 
-    setProgresso((prev) => ({
-      ...prev,
+    const novoProgresso = {
+      ...progresso,
       [exAtual.exercicio_id]: {
-        ...prev[exAtual.exercicio_id],
+        ...progresso[exAtual.exercicio_id],
         carga: novaCarga,
       },
-    }));
+    };
+
+    setProgresso(novoProgresso);
+    persistirSessaoTemporaria(novoProgresso);
 
     if (exAtual.id) {
       await updateExercicioTreino(exAtual.id, { carga: novaCarga });
@@ -363,6 +624,42 @@ export default function TreinarScreen() {
     Keyboard.dismiss();
   };
 
+  // Abrir modal de edição manual de repetições
+  const abrirEdicaoManualReps = () => {
+    const exAtual = treino?.exercicios?.[exercicioAtivoIndex];
+    if (!exAtual) return;
+    const progAtual = progresso[exAtual.exercicio_id];
+    setInputRepsTexto((progAtual?.repeticoes ?? exAtual.repeticoes ?? 10).toString());
+    setModalEditarReps(true);
+  };
+
+  // Salvar repetições digitadas manualmente
+  const salvarRepsManual = async () => {
+    const exAtual = treino?.exercicios?.[exercicioAtivoIndex];
+    if (!exAtual) return;
+
+    const valorLimpo = inputRepsTexto.replace(",", ".");
+    const valorNum = parseInt(valorLimpo, 10);
+    const novasReps = isNaN(valorNum) ? 1 : Math.max(1, valorNum);
+
+    const novoProgresso = {
+      ...progresso,
+      [exAtual.exercicio_id]: {
+        ...progresso[exAtual.exercicio_id],
+        repeticoes: novasReps,
+      },
+    };
+
+    setProgresso(novoProgresso);
+    persistirSessaoTemporaria(novoProgresso);
+
+    if (exAtual.id) {
+      await updateExercicioTreino(exAtual.id, { repeticoes: novasReps });
+    }
+
+    setModalEditarReps(false);
+    Keyboard.dismiss();
+  };
 
   // Confirmar saída do treino
   const confirmarEncerramento = () => {
@@ -447,15 +744,15 @@ export default function TreinarScreen() {
           <TouchableOpacity
             onPress={() => {
               showConfirm(
-                "Sair do Treino",
-                "Deseja voltar para a tela anterior?",
+                "Pausar e Sair",
+                "Seu treino continuará salvo para você retomar quando quiser.",
                 () => {
                   pularDescanso();
                   router.back();
                 },
                 false,
-                "Sair",
-                "Cancelar"
+                "Sair e Manter Salvo",
+                "Continuar Treinando"
               );
             }}
             style={[
@@ -478,22 +775,6 @@ export default function TreinarScreen() {
               { backgroundColor: colors.card, borderColor: colors.cardBorder },
             ]}
           >
-            <View
-              style={[
-                styles.badgeExercicioIndex,
-                { backgroundColor: colors.accentLight },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.badgeExercicioIndexText,
-                  { color: colors.accent },
-                ]}
-              >
-                Exercício {exercicioAtivoIndex + 1} de {totalExercicios}
-              </Text>
-            </View>
-
             <Text style={[styles.nomeExercicio, { color: colors.text }]}>
               {exercicioAtual.exercicio?.nome}
             </Text>
@@ -547,10 +828,12 @@ export default function TreinarScreen() {
               </View>
             </View>
 
-            {/* Parâmetros do Exercício (Reps e Carga com Stepper) */}
+            {/* Parâmetros do Exercício (Reps e Carga com Toque para Editar) */}
             <View style={styles.parametrosGrid}>
-              {/* Repetições Alvo */}
-              <View
+              {/* Repetições Alvo (Toque para Editar) */}
+              <TouchableOpacity
+                onPress={abrirEdicaoManualReps}
+                activeOpacity={0.7}
                 style={[
                   styles.paramBox,
                   { backgroundColor: colors.cardSecondary, borderColor: colors.cardBorder },
@@ -559,10 +842,18 @@ export default function TreinarScreen() {
                 <Text style={[styles.paramLabel, { color: colors.textSecondary }]}>
                   Repetições Alvo
                 </Text>
-                <Text style={[styles.paramValor, { color: colors.text }]}>
-                  {exercicioAtual.repeticoes} reps
-                </Text>
-              </View>
+                <View style={styles.cargaDisplayRow}>
+                  <Text style={[styles.paramValor, { color: colors.text }]}>
+                    {estadoAtual.repeticoes ?? exercicioAtual.repeticoes} reps
+                  </Text>
+                  <Ionicons
+                    name="create-outline"
+                    size={14}
+                    color={colors.accent}
+                    style={{ marginLeft: 4 }}
+                  />
+                </View>
+              </TouchableOpacity>
 
               {/* Carga Atual (Toque para Editar) */}
               <TouchableOpacity
@@ -597,19 +888,36 @@ export default function TreinarScreen() {
               style={[
                 styles.descansoCard,
                 { backgroundColor: colors.cardSecondary },
+                tempoRestanteDescanso < 0 && {
+                  borderColor: colors.danger,
+                  borderWidth: 1,
+                },
               ]}
             >
               <View style={styles.descansoTituloRow}>
-                <Ionicons name="hourglass-outline" size={16} color={colors.accent} />
+                <Ionicons
+                  name={tempoRestanteDescanso < 0 ? "time-outline" : "hourglass-outline"}
+                  size={16}
+                  color={colors.accent}
+                />
                 <Text style={[styles.descansoTitulo, { color: colors.accent }]}>
-                  DESCANSO EM ANDAMENTO
+                  {tempoRestanteDescanso < 0
+                    ? "TEMPO DE DESCANSO EXCEDIDO"
+                    : "DESCANSO EM ANDAMENTO"}
                 </Text>
               </View>
-              <Text style={[styles.descansoCronometro, { color: colors.text }]}>
-                {formatarTempo(tempoRestanteDescanso)}
+              <Text
+                style={[
+                  styles.descansoCronometro,
+                  { color: tempoRestanteDescanso < 0 ? colors.danger : colors.text },
+                ]}
+              >
+                {formatarTempoDescanso(tempoRestanteDescanso)}
               </Text>
               <Text style={[styles.descansoSub, { color: colors.textSecondary }]}>
-                O alarme do celular tocará quando o tempo acabar!
+                {tempoRestanteDescanso < 0
+                  ? "Descanso finalizado! Inicie a próxima série."
+                  : "Aproveite para recuperar o fôlego antes da próxima série."}
               </Text>
 
               <View style={styles.descansoBotoesRow}>
@@ -623,10 +931,20 @@ export default function TreinarScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={pularDescanso}
-                  style={[styles.btnPularDescanso, { backgroundColor: colors.primary }]}
+                  style={[
+                    styles.btnPularDescanso,
+                    { backgroundColor: tempoRestanteDescanso < 0 ? colors.danger : colors.primary },
+                  ]}
                 >
-                  <Ionicons name="play-skip-forward" size={15} color="#fff" style={{ marginRight: 6 }} />
-                  <Text style={styles.btnPularDescansoText}>Pular Descanso</Text>
+                  <Ionicons
+                    name={tempoRestanteDescanso < 0 ? "stop-circle-outline" : "play-skip-forward"}
+                    size={15}
+                    color="#fff"
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text style={styles.btnPularDescansoText}>
+                    {tempoRestanteDescanso < 0 ? "Encerrar Descanso" : "Pular Descanso"}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -708,10 +1026,13 @@ export default function TreinarScreen() {
               </View>
 
               <Text style={[styles.drawerSub, { color: colors.textMuted }]}>
-                Toque no nome para mudar de aparelho ou na caixa para marcar.
+                Toque no nome para focar ou use as setas para reorganizar a ordem.
               </Text>
 
-              <ScrollView style={{ flex: 1 }}>
+              <ScrollView
+                style={{ flex: 1 }}
+                showsVerticalScrollIndicator={false}
+              >
                 {treino.exercicios.map((item, index) => {
                   const est = progresso[item.exercicio_id] || {
                     serieAtual: 1,
@@ -722,80 +1043,21 @@ export default function TreinarScreen() {
                   const isAtivo = index === exercicioAtivoIndex;
 
                   return (
-                    <View
+                    <DrawerExercicioItem
                       key={item.exercicio_id}
-                      style={[
-                        styles.drawerItem,
-                        {
-                          backgroundColor: colors.background,
-                          borderColor: colors.cardBorder,
-                        },
-                        isAtivo && {
-                          borderColor: colors.accent,
-                          backgroundColor: colors.accentLight,
-                        },
-                        est.concluido && {
-                          backgroundColor: colors.successLight,
-                          borderColor: colors.success,
-                        },
-                      ]}
-                    >
-                      {/* Checkbox direta */}
-                      <TouchableOpacity
-                        onPress={() => toggleCheckboxManual(item.exercicio_id)}
-                        style={styles.checkboxTouch}
-                      >
-                        <Ionicons
-                          name={est.concluido ? "checkmark-circle" : "ellipse-outline"}
-                          size={24}
-                          color={est.concluido ? colors.success : colors.textMuted}
-                        />
-                      </TouchableOpacity>
-
-                      {/* Toque no Nome muda para este exercício */}
-                      <TouchableOpacity
-                        onPress={() => {
-                          setExercicioAtivoIndex(index);
-                          setMenuLateralAberto(false);
-                        }}
-                        style={{ flex: 1 }}
-                      >
-                        <View style={{ flexDirection: "row", alignItems: "center" }}>
-                          <Text
-                            style={[
-                              styles.drawerItemNome,
-                              { color: colors.text },
-                              est.concluido && {
-                                textDecorationLine: "line-through",
-                                color: colors.textMuted,
-                              },
-                              isAtivo && { color: colors.accent },
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {item.exercicio?.nome}
-                          </Text>
-                          {isAtivo && (
-                            <View
-                              style={[
-                                styles.badgeAtual,
-                                { backgroundColor: colors.accent },
-                              ]}
-                            >
-                              <Text style={styles.badgeAtualText}>Atual</Text>
-                            </View>
-                          )}
-                        </View>
-                        <Text
-                          style={[
-                            styles.drawerItemStatus,
-                            { color: colors.textSecondary },
-                          ]}
-                        >
-                          {est.serieAtual}/{est.totalSeries} séries • {est.carga} kg
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
+                      item={item}
+                      index={index}
+                      total={totalExercicios}
+                      colors={colors}
+                      isAtivo={isAtivo}
+                      est={est}
+                      onSelect={(idx) => {
+                        setExercicioAtivoIndex(idx);
+                        setMenuLateralAberto(false);
+                      }}
+                      onToggleConcluido={toggleCheckboxManual}
+                      onMove={moverExercicioNaExecucao}
+                    />
                   );
                 })}
               </ScrollView>
@@ -917,6 +1179,11 @@ export default function TreinarScreen() {
           transparent={true}
           animationType="fade"
           onRequestClose={() => setModalEditarCarga(false)}
+          onShow={() => {
+            setTimeout(() => {
+              inputCargaRef.current?.focus();
+            }, 60);
+          }}
         >
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -950,15 +1217,17 @@ export default function TreinarScreen() {
                     ]}
                   >
                     <TextInput
+                      ref={inputCargaRef}
                       style={[styles.modalCargaInput, { color: colors.text }]}
                       value={inputCargaTexto}
                       onChangeText={setInputCargaTexto}
                       keyboardType="numeric"
                       selectTextOnFocus={true}
-                      autoFocus={true}
                       placeholder="0"
                       placeholderTextColor={colors.textMuted}
                       maxLength={6}
+                      onSubmitEditing={salvarCargaManual}
+                      returnKeyType="done"
                     />
                     <Text style={[styles.modalCargaUnit, { color: colors.textSecondary }]}>
                       kg
@@ -994,6 +1263,105 @@ export default function TreinarScreen() {
                     >
                       <Text style={styles.modalCargaBtnSalvarText}>
                         Salvar Carga
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </KeyboardAvoidingView>
+        </Modal>
+
+        {/* MODAL DE EDIÇÃO MANUAL DE REPETIÇÕES */}
+        <Modal
+          visible={modalEditarReps}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setModalEditarReps(false)}
+          onShow={() => {
+            setTimeout(() => {
+              inputRepsRef.current?.focus();
+            }, 60);
+          }}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            style={[styles.modalCargaOverlay, { backgroundColor: colors.backdrop }]}
+          >
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+              <View style={styles.modalCargaDismissArea}>
+                <View
+                  style={[
+                    styles.modalCargaCard,
+                    { backgroundColor: colors.card, borderColor: colors.cardBorder },
+                  ]}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                    <Ionicons name="create-outline" size={22} color={colors.accent} />
+                    <Text style={[styles.modalCargaTitle, { color: colors.text }]}>
+                      Ajustar Repetições
+                    </Text>
+                  </View>
+                  <Text
+                    style={[styles.modalCargaSub, { color: colors.textSecondary }]}
+                    numberOfLines={1}
+                  >
+                    {exercicioAtual.exercicio?.nome}
+                  </Text>
+
+                  <View
+                    style={[
+                      styles.modalCargaInputContainer,
+                      { backgroundColor: colors.inputBg, borderColor: colors.inputBorder },
+                    ]}
+                  >
+                    <TextInput
+                      ref={inputRepsRef}
+                      style={[styles.modalCargaInput, { color: colors.text }]}
+                      value={inputRepsTexto}
+                      onChangeText={setInputRepsTexto}
+                      keyboardType="numeric"
+                      selectTextOnFocus={true}
+                      placeholder="10"
+                      placeholderTextColor={colors.textMuted}
+                      maxLength={4}
+                      onSubmitEditing={salvarRepsManual}
+                      returnKeyType="done"
+                    />
+                    <Text style={[styles.modalCargaUnit, { color: colors.textSecondary }]}>
+                      reps
+                    </Text>
+                  </View>
+
+                  <View style={styles.modalCargaBotoesRow}>
+                    <TouchableOpacity
+                      onPress={() => setModalEditarReps(false)}
+                      style={[
+                        styles.modalCargaBtnCancelar,
+                        { backgroundColor: colors.cardSecondary, borderColor: colors.cardBorder },
+                      ]}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          styles.modalCargaBtnCancelarText,
+                          { color: colors.textSecondary },
+                        ]}
+                      >
+                        Cancelar
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={salvarRepsManual}
+                      style={[
+                        styles.modalCargaBtnSalvar,
+                        { backgroundColor: colors.primary },
+                      ]}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.modalCargaBtnSalvarText}>
+                        Salvar Reps
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -1103,17 +1471,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
     marginBottom: 16,
-  },
-  badgeExercicioIndex: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    marginBottom: 8,
-  },
-  badgeExercicioIndexText: {
-    fontSize: 12,
-    fontWeight: "bold",
   },
   nomeExercicio: {
     fontSize: 22,
@@ -1342,6 +1699,19 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 10,
     fontWeight: "bold",
+  },
+  drawerItemActions: {
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 8,
+    gap: 2,
+  },
+  btnDrawerOrdem: {
+    padding: 3,
+    borderRadius: 4,
+    alignItems: "center",
+    justifyContent: "center",
   },
   drawerBtnEncerrar: {
     flexDirection: "row",

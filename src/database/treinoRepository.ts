@@ -14,6 +14,7 @@ export async function getAllTreinos(): Promise<Treino[]> {
       FROM exercicio_treino et
       JOIN exercicios e ON et.exercicio_id = e.id
       WHERE et.treino_id = ?
+      ORDER BY et.ordem ASC, et.id ASC
       `,
       [treino.id]
     );
@@ -25,7 +26,8 @@ export async function getAllTreinos(): Promise<Treino[]> {
       repeticoes: et.repeticoes,
       series: et.series,
       descanso: et.descanso,
-      carga: et.carga, // ✅ ADICIONADO
+      carga: et.carga,
+      ordem: et.ordem ?? 0,
       exercicio: {
         id: et.exercicio_id,
         nome: et.nome,
@@ -55,6 +57,7 @@ export async function getTreinoById(id: number): Promise<Treino | null> {
     FROM exercicio_treino et
     JOIN exercicios e ON et.exercicio_id = e.id
     WHERE et.treino_id = ?
+    ORDER BY et.ordem ASC, et.id ASC
     `,
     [id]
   );
@@ -66,7 +69,8 @@ export async function getTreinoById(id: number): Promise<Treino | null> {
     repeticoes: et.repeticoes,
     series: et.series,
     descanso: et.descanso,
-    carga: et.carga, // ✅ ADICIONADO
+    carga: et.carga,
+    ordem: et.ordem ?? 0,
     exercicio: {
       id: et.exercicio_id,
       nome: et.nome,

@@ -38,6 +38,7 @@ async function executeInitDatabase() {
       series INTEGER NOT NULL,
       descanso INTEGER NOT NULL,
       carga INTEGER NOT NULL,
+      ordem INTEGER NOT NULL DEFAULT 0,
       FOREIGN KEY (treino_id) REFERENCES treinos(id) ON DELETE CASCADE,
       FOREIGN KEY (exercicio_id) REFERENCES exercicios(id) ON DELETE CASCADE
     );
@@ -68,7 +69,21 @@ async function executeInitDatabase() {
       carga REAL NOT NULL,
       FOREIGN KEY (sessao_id) REFERENCES historico_sessoes(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS sessao_ativa_treino (
+      id INTEGER PRIMARY KEY DEFAULT 1,
+      treino_id INTEGER NOT NULL,
+      dados_json TEXT NOT NULL,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
   `);
+
+  // Migração segura para adicionar coluna 'ordem' caso o banco já exista
+  try {
+    await db.execAsync(`ALTER TABLE exercicio_treino ADD COLUMN ordem INTEGER NOT NULL DEFAULT 0;`);
+  } catch {
+    // Coluna já existente
+  }
 
   // Limpa duplicidades caso existam no banco do usuário
   await db.execAsync(`

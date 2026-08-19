@@ -1,5 +1,6 @@
 import {
   addExercicioTreino,
+  atualizarOrdemExercicios,
   deleteExercicioTreinoById,
   getExerciciosDoTreino,
   updateExercicioTreino,
@@ -38,6 +39,7 @@ export const adicionarExercicioAoTreino = createAsyncThunk(
     series: number;
     descanso: number;
     carga: number;
+    ordem?: number;
   }) => {
     return await addExercicioTreino(data); // devolve só o ID do item inserido
   }
@@ -53,6 +55,21 @@ export const atualizarExercicioTreino = createAsyncThunk(
   }) => {
     const { id, treinoId, data } = args;
     await updateExercicioTreino(id, data);
+    return await getExerciciosDoTreino(treinoId);
+  }
+);
+
+// ✅ Reordenar exercícios em lote
+export const reordenarExercicios = createAsyncThunk(
+  "exercicioTreino/reordenar",
+  async ({
+    treinoId,
+    itens,
+  }: {
+    treinoId: number;
+    itens: { id: number; ordem: number }[];
+  }) => {
+    await atualizarOrdemExercicios(itens);
     return await getExerciciosDoTreino(treinoId);
   }
 );
@@ -85,6 +102,11 @@ const exercicioTreinoSlice = createSlice({
 
       // ✅ atualizar -> lista nova
       .addCase(atualizarExercicioTreino.fulfilled, (state, action) => {
+        state.lista = action.payload;
+      })
+
+      // ✅ reordenar -> lista nova
+      .addCase(reordenarExercicios.fulfilled, (state, action) => {
         state.lista = action.payload;
       })
 
