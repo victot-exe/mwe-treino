@@ -269,16 +269,11 @@ export default function TreinarScreen() {
 
     if (fimDescansoTimestampRef.current !== null) {
       const restanteMs = fimDescansoTimestampRef.current - Date.now();
-      const restanteSeg = Math.ceil(restanteMs / 1000);
+      const restanteSeg = restanteMs >= 0
+        ? Math.ceil(restanteMs / 1000)
+        : Math.floor(restanteMs / 1000);
 
-      if (restanteSeg <= 0) {
-        fimDescansoTimestampRef.current = null;
-        setDescansoAtivo(false);
-        setTempoRestanteDescanso(0);
-        notificationIdRef.current = null;
-      } else {
-        setTempoRestanteDescanso(restanteSeg);
-      }
+      setTempoRestanteDescanso(restanteSeg);
     }
   }, []);
 
@@ -323,6 +318,16 @@ export default function TreinarScreen() {
     return `${min.toString().padStart(2, "0")}:${seg.toString().padStart(2, "0")}`;
   };
 
+  // Formatação de Tempo de Descanso (suporta contagem regressiva e contagem negativa de tempo excedente)
+  const formatarTempoDescanso = (segundos: number) => {
+    const isNegativo = segundos < 0;
+    const totalSegundos = Math.abs(segundos);
+    const min = Math.floor(totalSegundos / 60);
+    const seg = totalSegundos % 60;
+    const formatado = `${min.toString().padStart(2, "0")}:${seg.toString().padStart(2, "0")}`;
+    return isNegativo ? `-${formatado}` : formatado;
+  };
+
   // Iniciar Cronômetro de Descanso
   const iniciarDescanso = async (segundos: number, nomeExercicio: string) => {
     if (notificationIdRef.current) {
@@ -351,20 +356,14 @@ export default function TreinarScreen() {
 
   // Adicionar +15s ao descanso
   const adicionarTempoDescanso = async (segundosAdicionais: number = 15) => {
-    if (fimDescansoTimestampRef.current) {
-      fimDescansoTimestampRef.current += segundosAdicionais * 1000;
-      const novoTempo = tempoRestanteDescanso + segundosAdicionais;
-      setTempoRestanteDescanso(novoTempo);
-
-      if (notificationIdRef.current) {
-        await cancelarNotificacaoDescanso(notificationIdRef.current);
+    if (fimDescansoTimestampRef.current !== null) {
+      if (fimDescansoTimestampRef.current < Date.now()) {
+        fimDescansoTimestampRef.current = Date.now() + segundosAdicionais * 1000;
+      } else {
+        fimDescansoTimestampRef.current += segundosAdicionais * 1000;
       }
-      const exAtual = treino?.exercicios?.[exercicioAtivoIndex];
-      const notifId = await agendarNotificacaoDescanso(
-        novoTempo,
-        exAtual?.exercicio?.nome || "Próximo Exercício"
-      );
-      notificationIdRef.current = notifId;
+      const restanteMs = fimDescansoTimestampRef.current - Date.now();
+      setTempoRestanteDescanso(Math.ceil(restanteMs / 1000));
     }
   };
 
@@ -810,19 +809,36 @@ export default function TreinarScreen() {
               style={[
                 styles.descansoCard,
                 { backgroundColor: colors.cardSecondary },
+                tempoRestanteDescanso < 0 && {
+                  borderColor: colors.danger,
+                  borderWidth: 1,
+                },
               ]}
             >
               <View style={styles.descansoTituloRow}>
-                <Ionicons name="hourglass-outline" size={16} color={colors.accent} />
+                <Ionicons
+                  name={tempoRestanteDescanso < 0 ? "time-outline" : "hourglass-outline"}
+                  size={16}
+                  color={colors.accent}
+                />
                 <Text style={[styles.descansoTitulo, { color: colors.accent }]}>
-                  DESCANSO EM ANDAMENTO
+                  {tempoRestanteDescanso < 0
+                    ? "TEMPO DE DESCANSO EXCEDIDO"
+                    : "DESCANSO EM ANDAMENTO"}
                 </Text>
               </View>
-              <Text style={[styles.descansoCronometro, { color: colors.text }]}>
-                {formatarTempo(tempoRestanteDescanso)}
+              <Text
+                style={[
+                  styles.descansoCronometro,
+                  { color: tempoRestanteDescanso < 0 ? colors.danger : colors.text },
+                ]}
+              >
+                {formatarTempoDescanso(tempoRestanteDescanso)}
               </Text>
               <Text style={[styles.descansoSub, { color: colors.textSecondary }]}>
-                O alarme do celular tocará quando o tempo acabar!
+                {tempoRestanteDescanso < 0
+                  ? "Descanso finalizado! Inicie a próxima série."
+                  : "Aproveite para recuperar o fôlego antes da próxima série."}
               </Text>
 
               <View style={styles.descansoBotoesRow}>
@@ -836,10 +852,20 @@ export default function TreinarScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={pularDescanso}
-                  style={[styles.btnPularDescanso, { backgroundColor: colors.primary }]}
+                  style={[
+                    styles.btnPularDescanso,
+                    { backgroundColor: tempoRestanteDescanso < 0 ? colors.danger : colors.primary },
+                  ]}
                 >
-                  <Ionicons name="play-skip-forward" size={15} color="#fff" style={{ marginRight: 6 }} />
-                  <Text style={styles.btnPularDescansoText}>Pular Descanso</Text>
+                  <Ionicons
+                    name={tempoRestanteDescanso < 0 ? "stop-circle-outline" : "play-skip-forward"}
+                    size={15}
+                    color="#fff"
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text style={styles.btnPularDescansoText}>
+                    {tempoRestanteDescanso < 0 ? "Encerrar Descanso" : "Pular Descanso"}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
