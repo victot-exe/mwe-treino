@@ -33,6 +33,7 @@ export interface ExercicioTreino{
     series: number;
     descanso: number;
     carga: number;
+    ordem?: number;
 }
 
 export interface ExercicioConfigItem {
@@ -41,6 +42,7 @@ export interface ExercicioConfigItem {
     repeticoes: number;
     descanso: number;
     carga: number;
+    ordem?: number;
 }
 
 export interface HistoricoSessao {

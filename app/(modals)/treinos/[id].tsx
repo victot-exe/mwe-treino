@@ -12,12 +12,13 @@ import { carregarTreinos } from "@/src/store/treinoSlice";
 import { Exercicio, ExercicioTreino, GRUPOS_MUSCULARES, Treino } from "@/src/types";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Keyboard,
   KeyboardAvoidingView,
+  PanResponder,
   Platform,
   ScrollView,
   StyleSheet,
@@ -27,6 +28,184 @@ import {
   View,
 } from "react-native";
 import { useDispatch } from "react-redux";
+
+interface CardExercicioEdicaoProps {
+  item: ExercicioTreino;
+  index: number;
+  total: number;
+  colors: any;
+  onMove: (from: number, to: number) => void;
+  onRemove: (index: number) => void;
+  onUpdateField: (index: number, field: keyof ExercicioTreino, val: string) => void;
+}
+
+function CardExercicioEdicao({
+  item,
+  index,
+  total,
+  colors,
+  onMove,
+  onRemove,
+  onUpdateField,
+}: CardExercicioEdicaoProps) {
+  return (
+    <View
+      style={[
+        styles.cardEdicao,
+        { backgroundColor: colors.card, borderColor: colors.cardBorder },
+      ]}
+    >
+      <View style={[styles.cardHeaderEdicao, { borderColor: colors.cardSecondary }]}>
+        <View style={styles.cardTitleContainer}>
+          <Text style={[styles.cardIndexEdicao, { backgroundColor: colors.accent }]}>
+            {index + 1}
+          </Text>
+          <Text style={[styles.cardNomeEdicao, { color: colors.text }]}>
+            {item.exercicio?.nome}
+          </Text>
+        </View>
+
+        <View style={styles.cardActionsRow}>
+          {/* Botão Mover Para Cima */}
+          <TouchableOpacity
+            onPress={() => onMove(index, index - 1)}
+            disabled={index === 0}
+            style={[
+              styles.btnOrdem,
+              { backgroundColor: colors.cardSecondary, borderColor: colors.cardBorder },
+              index === 0 && { opacity: 0.25 },
+            ]}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+          >
+            <Ionicons name="chevron-up" size={15} color={colors.text} />
+          </TouchableOpacity>
+
+          {/* Botão Mover Para Baixo */}
+          <TouchableOpacity
+            onPress={() => onMove(index, index + 1)}
+            disabled={index === total - 1}
+            style={[
+              styles.btnOrdem,
+              { backgroundColor: colors.cardSecondary, borderColor: colors.cardBorder },
+              index === total - 1 && { opacity: 0.25 },
+            ]}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+          >
+            <Ionicons name="chevron-down" size={15} color={colors.text} />
+          </TouchableOpacity>
+
+          {/* Botão Remover */}
+          <TouchableOpacity
+            onPress={() => onRemove(index)}
+            style={styles.removerBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
+          >
+            <Ionicons name="trash-outline" size={18} color={colors.danger} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Inputs Diretos */}
+      <View style={styles.gridInputs}>
+        {/* Séries */}
+        <View style={styles.colInput}>
+          <Text style={[styles.colLabel, { color: colors.textSecondary }]}>
+            Séries
+          </Text>
+          <TextInput
+            style={[
+              styles.gridInput,
+              {
+                backgroundColor: colors.inputBg,
+                color: colors.text,
+                borderColor: colors.inputBorder,
+              },
+            ]}
+            keyboardType="numeric"
+            selectTextOnFocus={true}
+            value={item.series !== undefined ? String(item.series) : "4"}
+            onChangeText={(val) => onUpdateField(index, "series", val)}
+            placeholder="4"
+            placeholderTextColor={colors.textMuted}
+          />
+        </View>
+
+        {/* Repetições */}
+        <View style={styles.colInput}>
+          <Text style={[styles.colLabel, { color: colors.textSecondary }]}>
+            Reps
+          </Text>
+          <TextInput
+            style={[
+              styles.gridInput,
+              {
+                backgroundColor: colors.inputBg,
+                color: colors.text,
+                borderColor: colors.inputBorder,
+              },
+            ]}
+            keyboardType="numeric"
+            selectTextOnFocus={true}
+            value={
+              item.repeticoes !== undefined ? String(item.repeticoes) : "10"
+            }
+            onChangeText={(val) => onUpdateField(index, "repeticoes", val)}
+            placeholder="10"
+            placeholderTextColor={colors.textMuted}
+          />
+        </View>
+
+        {/* Carga (kg) */}
+        <View style={styles.colInput}>
+          <Text style={[styles.colLabel, { color: colors.textSecondary }]}>
+            Carga (kg)
+          </Text>
+          <TextInput
+            style={[
+              styles.gridInput,
+              {
+                backgroundColor: colors.inputBg,
+                color: colors.text,
+                borderColor: colors.inputBorder,
+              },
+            ]}
+            keyboardType="numeric"
+            selectTextOnFocus={true}
+            value={item.carga !== undefined ? String(item.carga) : "0"}
+            onChangeText={(val) => onUpdateField(index, "carga", val)}
+            placeholder="0"
+            placeholderTextColor={colors.textMuted}
+          />
+        </View>
+
+        {/* Descanso (s) */}
+        <View style={styles.colInput}>
+          <Text style={[styles.colLabel, { color: colors.textSecondary }]}>
+            Descanso (s)
+          </Text>
+          <TextInput
+            style={[
+              styles.gridInput,
+              {
+                backgroundColor: colors.inputBg,
+                color: colors.text,
+                borderColor: colors.inputBorder,
+              },
+            ]}
+            keyboardType="numeric"
+            selectTextOnFocus={true}
+            value={
+              item.descanso !== undefined ? String(item.descanso) : "60"
+            }
+            onChangeText={(val) => onUpdateField(index, "descanso", val)}
+            placeholder="60"
+            placeholderTextColor={colors.textMuted}
+          />
+        </View>
+      </View>
+    </View>
+  );
+}
 
 export default function TreinoScreen() {
   const dispatch = useDispatch<AppDispatch>();
@@ -44,6 +223,7 @@ export default function TreinoScreen() {
   const [exerciciosEditados, setExerciciosEditados] = useState<ExercicioTreino[]>([]);
   const [idsParaExcluir, setIdsParaExcluir] = useState<number[]>([]);
   const [salvando, setSalvando] = useState(false);
+  const [scrollHabilitado, setScrollHabilitado] = useState(true);
 
   // Catálogo de Exercícios para Adicionar durante a edição
   const [todosExercicios, setTodosExercicios] = useState<Exercicio[]>([]);
@@ -111,33 +291,24 @@ export default function TreinoScreen() {
     });
   };
 
-  const alterarValorRapido = (
-    index: number,
-    campo: "series" | "repeticoes" | "carga" | "descanso",
-    delta: number,
-    min: number = 0
-  ) => {
-    setExerciciosEditados((prev) =>
-      prev.map((item, i) => {
-        if (i === index) {
-          const atual = Number(item[campo]) || 0;
-          const novo = Math.max(min, atual + delta);
-          return {
-            ...item,
-            [campo]: novo,
-          };
-        }
-        return item;
-      })
-    );
-  };
-
   const removerExercicioDoTreino = (index: number) => {
     const itemRemover = exerciciosEditados[index];
     if (itemRemover && itemRemover.id && itemRemover.id > 0) {
       setIdsParaExcluir((prev) => [...prev, itemRemover.id]);
     }
-    setExerciciosEditados((prev) => prev.filter((_, i) => i !== index));
+    setExerciciosEditados((prev) =>
+      prev.filter((_, i) => i !== index).map((item, idx) => ({ ...item, ordem: idx }))
+    );
+  };
+
+  const moverExercicioEditado = (fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= exerciciosEditados.length) return;
+    setExerciciosEditados((prev) => {
+      const novaLista = [...prev];
+      const [itemMovido] = novaLista.splice(fromIndex, 1);
+      novaLista.splice(toIndex, 0, itemMovido);
+      return novaLista.map((item, idx) => ({ ...item, ordem: idx }));
+    });
   };
 
   const adicionarExercicioAoTreinoLocal = (ex: Exercicio) => {
@@ -151,6 +322,7 @@ export default function TreinoScreen() {
       repeticoes: 10,
       carga: 0,
       descanso: 60,
+      ordem: exerciciosEditados.length,
     };
 
     setExerciciosEditados((prev) => [...prev, novoItem]);
@@ -186,13 +358,15 @@ export default function TreinoScreen() {
       }
 
       // 3. Atualiza ou insere os exercícios editados
-      for (const item of exerciciosEditados) {
+      for (let i = 0; i < exerciciosEditados.length; i++) {
+        const item = exerciciosEditados[i];
         if (item.id && item.id > 0) {
           await updateExercicioTreino(item.id, {
             series: Number(item.series) || 1,
             repeticoes: Number(item.repeticoes) || 1,
             carga: Number(item.carga) || 0,
             descanso: Number(item.descanso) || 30,
+            ordem: i,
           });
         } else {
           await addExercicioTreino({
@@ -202,6 +376,7 @@ export default function TreinoScreen() {
             repeticoes: Number(item.repeticoes) || 1,
             carga: Number(item.carga) || 0,
             descanso: Number(item.descanso) || 30,
+            ordem: i,
           });
         }
       }
@@ -496,256 +671,22 @@ export default function TreinoScreen() {
         ) : (
           /* MODO EDIÇÃO */
           <ScrollView
+            scrollEnabled={scrollHabilitado}
             contentContainerStyle={styles.listContentEdicao}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="none"
           >
             {exerciciosEditados.map((item, index) => (
-              <View
+              <CardExercicioEdicao
                 key={item.id ? `id-${item.id}` : `novo-${index}`}
-                style={[
-                  styles.cardEdicao,
-                  { backgroundColor: colors.card, borderColor: colors.cardBorder },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.cardHeaderEdicao,
-                    { borderColor: colors.cardSecondary },
-                  ]}
-                >
-                  <View style={styles.cardTitleContainer}>
-                    <Text
-                      style={[
-                        styles.cardIndexEdicao,
-                        { backgroundColor: colors.accent },
-                      ]}
-                    >
-                      {index + 1}
-                    </Text>
-                    <Text style={[styles.cardNomeEdicao, { color: colors.text }]}>
-                      {item.exercicio?.nome}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => removerExercicioDoTreino(index)}
-                    style={styles.removerBtn}
-                  >
-                    <Ionicons name="trash-outline" size={18} color={colors.danger} />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Inputs com Steppers */}
-                <View style={styles.gridInputs}>
-                  {/* Séries */}
-                  <View style={styles.colInput}>
-                    <Text style={[styles.colLabel, { color: colors.textSecondary }]}>
-                      Séries
-                    </Text>
-                    <View
-                      style={[
-                        styles.stepperContainer,
-                        {
-                          backgroundColor: colors.stepperBg,
-                          borderColor: colors.inputBorder,
-                        },
-                      ]}
-                    >
-                      <TouchableOpacity
-                        onPress={() => alterarValorRapido(index, "series", -1, 1)}
-                        style={[
-                          styles.stepperBtn,
-                          { backgroundColor: colors.stepperBtn },
-                        ]}
-                      >
-                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>
-                          -
-                        </Text>
-                      </TouchableOpacity>
-                      <TextInput
-                        style={[
-                          styles.gridInput,
-                          { backgroundColor: colors.inputBg, color: colors.text },
-                        ]}
-                        keyboardType="numeric"
-                        selectTextOnFocus={true}
-                        value={item.series !== undefined ? String(item.series) : "4"}
-                        onChangeText={(val) =>
-                          atualizarCampoExercicio(index, "series", val)
-                        }
-                      />
-                      <TouchableOpacity
-                        onPress={() => alterarValorRapido(index, "series", 1, 1)}
-                        style={[
-                          styles.stepperBtn,
-                          { backgroundColor: colors.stepperBtn },
-                        ]}
-                      >
-                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>
-                          +
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-
-                  {/* Repetições */}
-                  <View style={styles.colInput}>
-                    <Text style={[styles.colLabel, { color: colors.textSecondary }]}>
-                      Reps
-                    </Text>
-                    <View
-                      style={[
-                        styles.stepperContainer,
-                        {
-                          backgroundColor: colors.stepperBg,
-                          borderColor: colors.inputBorder,
-                        },
-                      ]}
-                    >
-                      <TouchableOpacity
-                        onPress={() => alterarValorRapido(index, "repeticoes", -1, 1)}
-                        style={[
-                          styles.stepperBtn,
-                          { backgroundColor: colors.stepperBtn },
-                        ]}
-                      >
-                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>
-                          -
-                        </Text>
-                      </TouchableOpacity>
-                      <TextInput
-                        style={[
-                          styles.gridInput,
-                          { backgroundColor: colors.inputBg, color: colors.text },
-                        ]}
-                        keyboardType="numeric"
-                        selectTextOnFocus={true}
-                        value={
-                          item.repeticoes !== undefined ? String(item.repeticoes) : "10"
-                        }
-                        onChangeText={(val) =>
-                          atualizarCampoExercicio(index, "repeticoes", val)
-                        }
-                      />
-                      <TouchableOpacity
-                        onPress={() => alterarValorRapido(index, "repeticoes", 1, 1)}
-                        style={[
-                          styles.stepperBtn,
-                          { backgroundColor: colors.stepperBtn },
-                        ]}
-                      >
-                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>
-                          +
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-
-                  {/* Carga (kg) */}
-                  <View style={styles.colInput}>
-                    <Text style={[styles.colLabel, { color: colors.textSecondary }]}>
-                      Carga (kg)
-                    </Text>
-                    <View
-                      style={[
-                        styles.stepperContainer,
-                        {
-                          backgroundColor: colors.stepperBg,
-                          borderColor: colors.inputBorder,
-                        },
-                      ]}
-                    >
-                      <TouchableOpacity
-                        onPress={() => alterarValorRapido(index, "carga", -5, 0)}
-                        style={[
-                          styles.stepperBtn,
-                          { backgroundColor: colors.stepperBtn },
-                        ]}
-                      >
-                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>
-                          -
-                        </Text>
-                      </TouchableOpacity>
-                      <TextInput
-                        style={[
-                          styles.gridInput,
-                          { backgroundColor: colors.inputBg, color: colors.text },
-                        ]}
-                        keyboardType="numeric"
-                        selectTextOnFocus={true}
-                        value={item.carga !== undefined ? String(item.carga) : "0"}
-                        onChangeText={(val) =>
-                          atualizarCampoExercicio(index, "carga", val)
-                        }
-                      />
-                      <TouchableOpacity
-                        onPress={() => alterarValorRapido(index, "carga", 5, 0)}
-                        style={[
-                          styles.stepperBtn,
-                          { backgroundColor: colors.stepperBtn },
-                        ]}
-                      >
-                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>
-                          +
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-
-                  {/* Descanso (s) */}
-                  <View style={styles.colInput}>
-                    <Text style={[styles.colLabel, { color: colors.textSecondary }]}>
-                      Descanso (s)
-                    </Text>
-                    <View
-                      style={[
-                        styles.stepperContainer,
-                        {
-                          backgroundColor: colors.stepperBg,
-                          borderColor: colors.inputBorder,
-                        },
-                      ]}
-                    >
-                      <TouchableOpacity
-                        onPress={() => alterarValorRapido(index, "descanso", -15, 0)}
-                        style={[
-                          styles.stepperBtn,
-                          { backgroundColor: colors.stepperBtn },
-                        ]}
-                      >
-                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>
-                          -
-                        </Text>
-                      </TouchableOpacity>
-                      <TextInput
-                        style={[
-                          styles.gridInput,
-                          { backgroundColor: colors.inputBg, color: colors.text },
-                        ]}
-                        keyboardType="numeric"
-                        selectTextOnFocus={true}
-                        value={
-                          item.descanso !== undefined ? String(item.descanso) : "60"
-                        }
-                        onChangeText={(val) =>
-                          atualizarCampoExercicio(index, "descanso", val)
-                        }
-                      />
-                      <TouchableOpacity
-                        onPress={() => alterarValorRapido(index, "descanso", 15, 0)}
-                        style={[
-                          styles.stepperBtn,
-                          { backgroundColor: colors.stepperBtn },
-                        ]}
-                      >
-                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>
-                          +
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-              </View>
+                item={item}
+                index={index}
+                total={exerciciosEditados.length}
+                colors={colors}
+                onMove={moverExercicioEditado}
+                onRemove={removerExercicioDoTreino}
+                onUpdateField={atualizarCampoExercicio}
+              />
             ))}
 
             {/* Adicionar Mais Exercícios ao Treino */}
@@ -1097,6 +1038,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "bold",
   },
+  cardActionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  btnOrdem: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   removerBtn: {
     padding: 4,
   },
@@ -1118,32 +1072,16 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     textAlign: "center",
   },
-  stepperContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+  gridInput: {
+    width: "100%",
+    height: 38,
     borderRadius: 8,
     borderWidth: 1,
-    overflow: "hidden",
-    width: "100%",
-  },
-  stepperBtn: {
+    textAlign: "center",
+    fontSize: 14,
+    fontWeight: "bold",
     paddingVertical: 6,
     paddingHorizontal: 4,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stepperBtnText: {
-    fontSize: 12,
-    fontWeight: "bold",
-  },
-  gridInput: {
-    flex: 1,
-    textAlign: "center",
-    paddingVertical: 4,
-    paddingHorizontal: 2,
-    fontSize: 13,
-    fontWeight: "bold",
-    minWidth: 26,
   },
   btnAddExercicio: {
     borderWidth: 1,
