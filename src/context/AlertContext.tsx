@@ -1,7 +1,6 @@
 import React, { createContext, useCallback, useContext, useState } from "react";
 import {
   Modal,
-  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,

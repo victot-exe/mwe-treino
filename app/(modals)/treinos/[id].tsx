@@ -16,14 +16,14 @@ import { AppDispatch } from "@/src/store";
 import { carregarTreinos } from "@/src/store/treinoSlice";
 import { Exercicio, ExercicioTreino, GRUPOS_MUSCULARES, Treino } from "@/src/types";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import { Link, router, useLocalSearchParams } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Keyboard,
   KeyboardAvoidingView,
-  PanResponder,
   Platform,
   ScrollView,
   StyleSheet,
@@ -238,7 +238,7 @@ export default function TreinoScreen() {
   const [exerciciosEditados, setExerciciosEditados] = useState<ExercicioTreino[]>([]);
   const [idsParaExcluir, setIdsParaExcluir] = useState<number[]>([]);
   const [salvando, setSalvando] = useState(false);
-  const [scrollHabilitado, setScrollHabilitado] = useState(true);
+  const [scrollHabilitado] = useState(true);
 
   // Catálogo de Exercícios para Adicionar durante a edição
   const [todosExercicios, setTodosExercicios] = useState<Exercicio[]>([]);
@@ -265,12 +265,12 @@ export default function TreinoScreen() {
     carregarTreino();
   }, [carregarTreino]);
 
-  // Carrega o catálogo caso queira adicionar novos exercícios
-  useEffect(() => {
-    if (modoEdicao) {
+  // Carrega o catálogo caso queira adicionar novos exercícios, inclusive ao retornar de cadastro
+  useFocusEffect(
+    useCallback(() => {
       getExercicios().then((res) => setTodosExercicios(res));
-    }
-  }, [modoEdicao]);
+    }, [])
+  );
 
   const iniciarEdicao = () => {
     if (treino) {
@@ -329,22 +329,30 @@ export default function TreinoScreen() {
     });
   };
 
-  const adicionarExercicioAoTreinoLocal = (ex: Exercicio) => {
-    const treinoIdNum = Number(id);
-    const novoItem: ExercicioTreino = {
-      id: 0,
-      treino_id: treinoIdNum,
-      exercicio_id: ex.id,
-      exercicio: ex,
-      series: 4,
-      repeticoes: 10,
-      carga: 0,
-      descanso: 60,
-      ordem: exerciciosEditados.length,
-    };
+  const toggleExercicioNoTreinoLocal = (ex: Exercicio) => {
+    const indexExistente = exerciciosEditados.findIndex(
+      (item) => item.exercicio_id === ex.id
+    );
 
-    setExerciciosEditados((prev) => [...prev, novoItem]);
-    setMostrarCatalogo(false);
+    if (indexExistente >= 0) {
+      removerExercicioDoTreino(indexExistente);
+    } else {
+      const treinoIdNum = Number(id);
+      const novoItem: ExercicioTreino = {
+        id: 0,
+        treino_id: treinoIdNum,
+        exercicio_id: ex.id,
+        exercicio: ex,
+        series: 4,
+        repeticoes: 10,
+        carga: 0,
+        descanso: 60,
+        ordem: exerciciosEditados.length,
+      };
+
+      setExerciciosEditados((prev) => [...prev, novoItem]);
+      // Mantém o catálogo aberto para adicionar múltiplos exercícios
+    }
   };
 
   const salvarAlteracoes = async () => {
@@ -747,155 +755,226 @@ export default function TreinoScreen() {
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="none"
           >
-            {exerciciosEditados.map((item, index) => (
-              <CardExercicioEdicao
-                key={item.id ? `id-${item.id}` : `novo-${index}`}
-                item={item}
-                index={index}
-                total={exerciciosEditados.length}
-                colors={colors}
-                onMove={moverExercicioEditado}
-                onRemove={removerExercicioDoTreino}
-                onUpdateField={atualizarCampoExercicio}
-              />
-            ))}
-
-            {/* Adicionar Mais Exercícios ao Treino */}
-            <TouchableOpacity
-              onPress={() => setMostrarCatalogo(!mostrarCatalogo)}
-              style={[
-                styles.btnAddExercicio,
-                { backgroundColor: colors.accentLight, borderColor: colors.accent },
-              ]}
-            >
-              <Ionicons
-                name={mostrarCatalogo ? "chevron-up" : "add-circle-outline"}
-                size={18}
-                color={colors.accent}
-                style={{ marginRight: 6 }}
-              />
-              <Text style={[styles.btnAddExercicioText, { color: colors.accent }]}>
-                {mostrarCatalogo ? "Fechar Catálogo" : "Adicionar Mais Exercícios"}
-              </Text>
-            </TouchableOpacity>
-
-            {mostrarCatalogo && (
-              <View
-                style={[
-                  styles.catalogoContainer,
-                  { backgroundColor: colors.card, borderColor: colors.cardBorder },
-                ]}
-              >
-                <TextInput
-                  placeholder="Pesquisar exercício ou músculo..."
-                  placeholderTextColor={colors.textMuted}
-                  value={pesquisa}
-                  onChangeText={setPesquisa}
-                  style={[
-                    styles.inputBusca,
-                    {
-                      backgroundColor: colors.inputBg,
-                      color: colors.text,
-                      borderColor: colors.inputBorder,
-                    },
-                  ]}
-                />
-
-                {/* Chips de Filtro por Grupo Muscular */}
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ gap: 6, paddingVertical: 4, marginBottom: 8 }}
+            {/* Seção 1: Adicionar Exercícios (Busca & Catálogo) - Fica no topo para não deslocar a tela ao selecionar! */}
+            <View style={styles.sectionEdicao}>
+              <View style={styles.sectionHeaderRow}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <MaterialCommunityIcons name="dumbbell" size={18} color={colors.accent} />
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                    Adicionar Exercícios
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setMostrarCatalogo(!mostrarCatalogo)}
+                  style={styles.toggleCatalogoBtn}
+                  activeOpacity={0.7}
                 >
-                  {["Todos", ...GRUPOS_MUSCULARES].map((grupo) => {
-                    const ativo = filtroGrupoCatalogo === grupo;
-                    return (
-                      <TouchableOpacity
-                        key={grupo}
-                        onPress={() => setFiltroGrupoCatalogo(grupo)}
-                        style={[
-                          styles.chipFiltroCatalogo,
-                          {
-                            backgroundColor: ativo ? colors.primary : colors.cardSecondary,
-                            borderColor: ativo ? colors.primary : colors.cardBorder,
-                          },
-                        ]}
-                      >
-                        <Text
+                  <Text style={[styles.toggleCatalogoText, { color: colors.accent }]}>
+                    {mostrarCatalogo ? "Ocultar Busca ▲" : "Buscar Exercícios ▼"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {mostrarCatalogo && (
+                <View
+                  style={[
+                    styles.catalogoContainer,
+                    { backgroundColor: colors.card, borderColor: colors.cardBorder },
+                  ]}
+                >
+                  <TextInput
+                    placeholder="Pesquisar exercício ou músculo..."
+                    placeholderTextColor={colors.textMuted}
+                    value={pesquisa}
+                    onChangeText={setPesquisa}
+                    style={[
+                      styles.inputBusca,
+                      {
+                        backgroundColor: colors.inputBg,
+                        color: colors.text,
+                        borderColor: colors.inputBorder,
+                      },
+                    ]}
+                  />
+
+                  {/* Chips de Filtro por Grupo Muscular */}
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ gap: 6, paddingVertical: 4, marginBottom: 8 }}
+                  >
+                    {["Todos", ...GRUPOS_MUSCULARES].map((grupo) => {
+                      const ativo = filtroGrupoCatalogo === grupo;
+                      return (
+                        <TouchableOpacity
+                          key={grupo}
+                          onPress={() => setFiltroGrupoCatalogo(grupo)}
                           style={[
-                            styles.chipFiltroCatalogoText,
+                            styles.chipFiltroCatalogo,
                             {
-                              color: ativo ? "#fff" : colors.textSecondary,
-                              fontWeight: ativo ? "bold" : "normal",
+                              backgroundColor: ativo ? colors.primary : colors.cardSecondary,
+                              borderColor: ativo ? colors.primary : colors.cardBorder,
                             },
                           ]}
                         >
-                          {grupo}
+                          <Text
+                            style={[
+                              styles.chipFiltroCatalogoText,
+                              {
+                                color: ativo ? "#fff" : colors.textSecondary,
+                                fontWeight: ativo ? "bold" : "normal",
+                              },
+                            ]}
+                          >
+                            {grupo}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+
+                  {/* Linha de Cadastrar Novo Exercício e Contador */}
+                  <View style={styles.novoExercicioRow}>
+                    <Link href="/(modals)/exercicio/novoExercicio" asChild>
+                      <TouchableOpacity style={styles.novoExercicioBtn} activeOpacity={0.7}>
+                        <Ionicons
+                          name="add-circle-outline"
+                          size={16}
+                          color={colors.accent}
+                          style={{ marginRight: 4 }}
+                        />
+                        <Text style={[styles.novoExercicioText, { color: colors.accent }]}>
+                          Cadastrar Novo Exercício
                         </Text>
+                      </TouchableOpacity>
+                    </Link>
+                    <Text style={[styles.hintCatalogoText, { color: colors.textSecondary }]}>
+                      {exerciciosEditados.length} no treino
+                    </Text>
+                  </View>
+
+                  {/* Lista de Exercícios com Toggle Rápido */}
+                  {exerciciosFiltrados.map((ex) => {
+                    const jaNoTreino = exerciciosEditados.some(
+                      (item) => item.exercicio_id === ex.id
+                    );
+                    return (
+                      <TouchableOpacity
+                        key={ex.id}
+                        onPress={() => toggleExercicioNoTreinoLocal(ex)}
+                        style={[
+                          styles.catalogoItem,
+                          { borderColor: colors.cardSecondary },
+                          jaNoTreino && {
+                            backgroundColor: colors.accentLight,
+                            borderColor: colors.accent,
+                          },
+                        ]}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons
+                          name={jaNoTreino ? "checkmark-circle" : "add-circle-outline"}
+                          size={22}
+                          color={jaNoTreino ? colors.success : colors.accent}
+                          style={{ marginRight: 10 }}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+                            <Text
+                              style={[
+                                styles.catalogoItemNome,
+                                { color: colors.text },
+                                jaNoTreino && { color: colors.accent, fontWeight: "bold" },
+                              ]}
+                            >
+                              {ex.nome}
+                            </Text>
+                            <View
+                              style={[
+                                styles.miniBadgeGrupo,
+                                { backgroundColor: colors.cardSecondary, borderColor: colors.cardBorder },
+                              ]}
+                            >
+                              <Text style={[styles.miniBadgeGrupoText, { color: colors.textSecondary }]}>
+                                {ex.grupo_muscular || "Geral"}
+                              </Text>
+                            </View>
+                          </View>
+                          {ex.descricao ? (
+                            <Text
+                              style={[
+                                styles.catalogoItemDesc,
+                                { color: colors.textSecondary },
+                              ]}
+                            >
+                              {ex.descricao}
+                            </Text>
+                          ) : null}
+                        </View>
                       </TouchableOpacity>
                     );
                   })}
-                </ScrollView>
 
-                {exerciciosFiltrados.map((ex) => {
-                  const jaNoTreino = exerciciosEditados.some(
-                    (item) => item.exercicio_id === ex.id
-                  );
-                  return (
-                    <TouchableOpacity
-                      key={ex.id}
-                      onPress={() => !jaNoTreino && adicionarExercicioAoTreinoLocal(ex)}
-                      style={[
-                        styles.catalogoItem,
-                        { borderColor: colors.cardSecondary },
-                        jaNoTreino && styles.catalogoItemDesativado,
-                      ]}
-                      disabled={jaNoTreino}
-                    >
-                      <Ionicons
-                        name={jaNoTreino ? "checkmark-circle" : "add-circle-outline"}
-                        size={22}
-                        color={jaNoTreino ? colors.success : colors.accent}
-                        style={{ marginRight: 10 }}
-                      />
-                      <View style={{ flex: 1 }}>
-                        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
-                          <Text
-                            style={[
-                              styles.catalogoItemNome,
-                              { color: colors.text },
-                              jaNoTreino && { color: colors.textMuted },
-                            ]}
-                          >
-                            {ex.nome}
-                          </Text>
-                          <View
-                            style={[
-                              styles.miniBadgeGrupo,
-                              { backgroundColor: colors.cardSecondary, borderColor: colors.cardBorder },
-                            ]}
-                          >
-                            <Text style={[styles.miniBadgeGrupoText, { color: colors.textSecondary }]}>
-                              {ex.grupo_muscular || "Geral"}
-                            </Text>
-                          </View>
-                        </View>
-                        {ex.descricao ? (
-                          <Text
-                            style={[
-                              styles.catalogoItemDesc,
-                              { color: colors.textSecondary },
-                            ]}
-                          >
-                            {ex.descricao}
-                          </Text>
-                        ) : null}
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
+                  {/* Botão para Concluir/Fechar o Catálogo */}
+                  <TouchableOpacity
+                    onPress={() => setMostrarCatalogo(false)}
+                    style={[
+                      styles.btnFecharCatalogoInferior,
+                      { backgroundColor: colors.cardSecondary, borderColor: colors.cardBorder },
+                    ]}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="checkmark-done" size={16} color={colors.accent} style={{ marginRight: 6 }} />
+                    <Text style={[styles.btnFecharCatalogoInferiorText, { color: colors.accent }]}>
+                      Concluir Seleção ({exerciciosEditados.length} no treino)
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
+            {/* Seção 2: Exercícios do Treino ({exerciciosEditados.length}) */}
+            <View style={styles.sectionEdicao}>
+              <View style={styles.sectionHeaderRow}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Ionicons name="list-outline" size={18} color={colors.primary} />
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                    Exercícios do Treino ({exerciciosEditados.length})
+                  </Text>
+                </View>
+                {!mostrarCatalogo && (
+                  <TouchableOpacity
+                    onPress={() => setMostrarCatalogo(true)}
+                    style={[styles.addMaisBtn, { backgroundColor: colors.accent }]}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="add" size={14} color="#fff" style={{ marginRight: 2 }} />
+                    <Text style={styles.addMaisText}>Adicionar</Text>
+                  </TouchableOpacity>
+                )}
               </View>
-            )}
+
+              {exerciciosEditados.map((item, index) => (
+                <CardExercicioEdicao
+                  key={item.id ? `id-${item.id}` : `novo-${index}`}
+                  item={item}
+                  index={index}
+                  total={exerciciosEditados.length}
+                  colors={colors}
+                  onMove={moverExercicioEditado}
+                  onRemove={removerExercicioDoTreino}
+                  onUpdateField={atualizarCampoExercicio}
+                />
+              ))}
+
+              {exerciciosEditados.length === 0 && (
+                <View style={styles.emptyListContainer}>
+                  <Text style={[styles.emptyListText, { color: colors.textSecondary }]}>
+                    Nenhum exercício selecionado para este treino. Use a busca acima para adicionar.
+                  </Text>
+                </View>
+              )}
+            </View>
           </ScrollView>
         )}
       </View>
@@ -1217,6 +1296,72 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   catalogoItemDesc: {
+    fontSize: 12,
+  },
+  novoExercicioRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginVertical: 8,
+    paddingHorizontal: 2,
+  },
+  novoExercicioBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 4,
+  },
+  novoExercicioText: {
+    fontWeight: "bold",
+    fontSize: 13,
+  },
+  hintCatalogoText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  btnFecharCatalogoInferior: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 12,
+  },
+  btnFecharCatalogoInferiorText: {
+    fontWeight: "bold",
+    fontSize: 13,
+  },
+  sectionEdicao: {
+    marginBottom: 16,
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  toggleCatalogoBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  toggleCatalogoText: {
+    fontWeight: "600",
+    fontSize: 13,
+  },
+  addMaisBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  addMaisText: {
+    color: "#fff",
+    fontWeight: "bold",
     fontSize: 12,
   },
   emptyListContainer: {

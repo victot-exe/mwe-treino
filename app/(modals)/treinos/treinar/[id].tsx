@@ -27,7 +27,6 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Modal,
-  PanResponder,
   Platform,
   ScrollView,
   StyleSheet,
@@ -138,7 +137,7 @@ function DrawerExercicioItem({
             { color: colors.textSecondary },
           ]}
         >
-          {est?.serieAtual ?? 1}/{est?.totalSeries ?? item.series ?? 4} séries • {est?.carga ?? item.carga ?? 0} kg
+          {est?.concluido ? (est?.totalSeries ?? item.series ?? 4) : (est?.serieAtual ?? 1)}/{est?.totalSeries ?? item.series ?? 4} séries • {est?.carga ?? item.carga ?? 0} kg
         </Text>
       </TouchableOpacity>
 
@@ -201,7 +200,6 @@ export default function TreinarScreen() {
 
   // Menu Lateral Retrátil (Checklist)
   const [menuLateralAberto, setMenuLateralAberto] = useState(false);
-  const [drawerScrollHabilitado, setDrawerScrollHabilitado] = useState(true);
 
   // Modal de Celebração de Treino Concluído
   const [treinoFinalizadoModal, setTreinoFinalizadoModal] = useState(false);
@@ -541,6 +539,7 @@ export default function TreinarScreen() {
         [exercicioId]: {
           ...atual,
           concluido: novoStatus,
+          serieAtual: novoStatus ? atual.totalSeries : 1,
         },
       };
 
@@ -792,7 +791,7 @@ export default function TreinarScreen() {
               ]}
             >
               <Text style={[styles.seriesLabel, { color: colors.textSecondary }]}>
-                Série <Text style={[styles.seriesDestaque, { color: colors.accent }]}>{estadoAtual.serieAtual}</Text> /{" "}
+                Série <Text style={[styles.seriesDestaque, { color: colors.accent }]}>{estadoAtual.concluido ? estadoAtual.totalSeries : estadoAtual.serieAtual}</Text> /{" "}
                 {estadoAtual.totalSeries}
               </Text>
               <View style={styles.seriesDotsRow}>
