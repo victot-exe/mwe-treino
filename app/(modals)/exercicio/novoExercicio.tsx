@@ -2,7 +2,7 @@ import { useAlert } from "@/src/context/AlertContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { AppDispatch } from "@/src/store";
 import { adicionarExercicio } from "@/src/store/exercicioSlice";
-import { Exercicio, GRUPOS_MUSCULARES, GrupoMuscular } from "@/src/types";
+import { Exercicio, GRUPOS_MUSCULARES } from "@/src/types";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";

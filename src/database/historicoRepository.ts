@@ -9,13 +9,13 @@ export interface SalvarSessaoInput {
   duracao_segundos: number;
   exercicios_concluidos: number;
   total_exercicios: number;
-  exercicios: Array<{
+  exercicios: {
     exercicio_id?: number | null;
     nome_exercicio: string;
     series_feitas: number;
     repeticoes: number;
     carga: number;
-  }>;
+  }[];
 }
 
 /**
@@ -112,13 +112,13 @@ export async function getHistoricoSessaoById(
 export async function getEvolucaoCargasPorExercicio(
   exercicioId: number
 ): Promise<
-  Array<{
+  {
     data: string;
     carga: number;
     nome_treino: string;
     series_feitas: number;
     repeticoes: number;
-  }>
+  }[]
 > {
   return db.getAllAsync(
     `

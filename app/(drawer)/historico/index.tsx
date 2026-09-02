@@ -328,7 +328,7 @@ export default function HistoricoScreen() {
               Nenhum treino no histórico
             </Text>
             <Text style={[styles.emptyDesc, { color: colors.textSecondary }]}>
-              Finalize um treino na aba "Treinos" para que ele fique registrado automaticamente aqui com suas cargas e tempos!
+              Finalize um treino na aba &quot;Treinos&quot; para que ele fique registrado automaticamente aqui com suas cargas e tempos!
             </Text>
             <TouchableOpacity
               onPress={() => router.push("/(drawer)/treino")}

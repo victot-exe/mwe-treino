@@ -1,5 +1,5 @@
 import { configureStore } from "@reduxjs/toolkit";
-import databaseReducer, { initializeDatabase } from "./databaseSlice";
+import databaseReducer from "./databaseSlice";
 import exercicioReducer from "./exercicioSlice";
 import exercicioTreinoReducer from "./exercicioTreinoSlice";
 import treinoReducer from "./treinoSlice";
